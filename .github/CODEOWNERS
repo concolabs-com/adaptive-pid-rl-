@@ -1,0 +1,14 @@
+# Example CODEOWNERS file
+# Replace usernames with your actual GitHub usernames.
+
+# Default owner for everything
+* @your-github-username
+
+# Frontend
+/src/components/ @your-github-username
+
+# Workflows
+/.github/workflows/ @your-github-username
+
+# Documentation
+/docs/ @your-github-username
