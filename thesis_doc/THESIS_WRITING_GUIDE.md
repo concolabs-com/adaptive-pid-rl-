@@ -452,20 +452,20 @@ The 14–15% settling time penalty for blindness is likely acceptable in many ap
 
 ## Figures and Tables Reference
 
-Use these files directly from `thesis_submission/results/`:
+All figures live in `chapter05/figures/`. Raw CSV data in `chapter05/data/`.
 
 | Figure | File | Use in |
 |--------|------|--------|
-| Stage 5a learning curve | `stage5a_context_rl/stage2_learning_curve.png` | Ch 5.1 |
-| Stage 5b learning curve | `stage5b_blind_rl/stage2_learning_curve.png` | Ch 5.1 |
-| Stage 5a trajectory plots | `stage5a_context_rl/seed_7/trajectory_plots.png` | Ch 5.2 |
-| Stage 5b trajectory plots | `stage5b_blind_rl/seed_7/trajectory_plots.png` | Ch 5.2 |
-| Stage 5a eval summary | `stage5a_context_rl/stage2_eval_summary.png` | Ch 5.2 |
-| Stage 5b eval summary | `stage5b_blind_rl/stage2_eval_summary.png` | Ch 5.2 |
-| Stage 5a dynamic trajectory | `stage5a_dynamic_eval/seed_7/trajectory_plots.png` | Ch 5.3 |
-| Stage 5b dynamic trajectory | `stage5b_dynamic_eval/seed_7/trajectory_plots.png` | Ch 5.3 |
-| Baseline static trajectories | `baseline_static/trajectories.png` | Ch 5.2 or 5.4 |
-| Baseline no-reset trajectories | `baseline_no_reset_finding/trajectories.png` | Ch 5.4 — shows massive overshoot |
+| Stage 5a learning curve | `chapter05/figures/training/stage5a_learning_curve.png` | Ch 5.1 |
+| Stage 5b learning curve | `chapter05/figures/training/stage5b_learning_curve.png` | Ch 5.1 |
+| Stage 5a trajectory plots (static) | `chapter05/figures/trajectories/stage5a_static_trajectories.png` | Ch 5.2 |
+| Stage 5b trajectory plots (static) | `chapter05/figures/trajectories/stage5b_static_trajectories.png` | Ch 5.2 |
+| Stage 5a eval summary | `chapter05/figures/eval/stage5a_eval_summary.png` | Ch 5.2 |
+| Stage 5b eval summary | `chapter05/figures/eval/stage5b_eval_summary.png` | Ch 5.2 |
+| Stage 5a dynamic trajectory | `chapter05/figures/trajectories/stage5a_dynamic_trajectories.png` | Ch 5.3 |
+| Stage 5b dynamic trajectory | `chapter05/figures/trajectories/stage5b_dynamic_trajectories.png` | Ch 5.3 |
+| Baseline static trajectories | `chapter05/figures/trajectories/baseline_static_trajectories.png` | Ch 5.2 or 5.4 |
+| Baseline no-reset trajectories | `chapter05/figures/trajectories/baseline_no_reset_trajectories.png` | Ch 5.4 — shows massive overshoot |
 
 **Tables to build from the exact numbers above:** Tables 5.1, 5.2, 5.3, 5.4 are ready to copy directly into the thesis.
 

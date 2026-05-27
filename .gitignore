@@ -83,6 +83,9 @@ dmypy.json
 *.ckpt
 *.safetensors
 
+# Un-ignore pre-trained reference models (small, needed by intern)
+!visualize/environment/agents/models/**/*.pth
+
 # MuJoCo / simulation outputs
 videos/
 recordings/
