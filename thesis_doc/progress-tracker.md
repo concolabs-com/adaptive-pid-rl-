@@ -17,20 +17,23 @@ Update this file after every meaningful thesis writing change.
   - Covers: PID motivation, classical adaptive control failure (incl. MRAC failure), RL gain-scheduling framing, two research questions (RQ1: feasibility, RQ2: context benefit), 3 numbered contributions, key findings preview, chapter outline
   - Citation placeholder `[^astrom1995]` added by user — needs full reference entry
 - **CONTEXT.md** — canonical thesis glossary (agent names, mechanisms, key numbers)
+- **Chapter 2 — Background and Related Work** (`chapter02/chapter2_background.md`)
+  - ~3,200 words, 5 sections
+  - Arc: gap-building — PID limitation → classical adaptive control requires model → RL model-free → domain randomisation for generalisation → prior RL-PID work leaves gap this thesis fills
+  - 2.1 PID Control: standard formulation, Ziegler–Nichols, SIMC, IMC, fixed-gain limitation
+  - 2.2 Adaptive Control: gain scheduling, MRAC (one-sentence failure note, forward-ref §6.2), model requirement as shared gap
+  - 2.3 RL for Control: MDP formulation, policy gradient theorem, PPO clipped surrogate + GAE with exact hyperparameters
+  - 2.4 Domain Randomisation and Implicit Adaptation: domain randomisation (Tobin et al.), frame stacking as implicit temporal memory — no "meta-RL" overclaim
+  - 2.5 RL for PID Gain Scheduling: offline vs online tuning taxonomy, model-dependent vs model-free gap, gap statement targeting feasibility + context ablation
+  - **Decision: Section 2.6 (Integral Windup) moved to Chapter 5 §5.4** — belongs next to confound analysis, not in background
+  - Citations needing verification: `[^shi2020]` venue/pages; two `CITATION_NEEDED` placeholders for model-based and model-free online RL-PID work
 
 ## In Progress
 
-- Chapter 2 — Background and Related Work (~3,000 words)
+- Chapter 3 — System Design and Methodology
 
 ## Next Up
 
-- Chapter 2 — Background and Related Work
-  - 2.1 PID Control (standard formulation, Ziegler–Nichols, SIMC, limitation)
-  - 2.2 Adaptive Control (gain scheduling, MRAC, self-tuning regulators)
-  - 2.3 RL for Control (MDP formulation, policy gradient, PPO with full equations)
-  - 2.4 Domain Randomisation and Frame Stacking (meta-RL connection, Tobin et al.)
-  - 2.5 RL for PID Gain Scheduling (related work, gap this thesis fills)
-  - 2.6 Integral Windup (technical background for Chapter 5 confound)
 - Chapter 3 — System Design and Methodology
 - Chapter 4 — Experimental Setup
 - Chapter 5 — Results and Analysis
