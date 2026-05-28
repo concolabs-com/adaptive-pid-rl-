@@ -28,13 +28,24 @@ Update this file after every meaningful thesis writing change.
   - **Decision: Section 2.6 (Integral Windup) moved to Chapter 5 §5.4** — belongs next to confound analysis, not in background
   - Citations needing verification: `[^shi2020]` venue/pages; two `CITATION_NEEDED` placeholders for model-based and model-free online RL-PID work
 
+- **Chapter 3 — System Design and Methodology** (`chapter03/chapter3_methodology.md`)
+  - ~3,400 words, 7 sections
+  - 3.1 Design Overview: iterative protocol history (governor → cliff protocol), cliff penalty tried and dropped, three supporting changes (decel bonus, progress cutoff, near-target init)
+  - 3.2 Simulation Environment: MuJoCo platform, task, two-loop architecture (RL 50 Hz / PID 500 Hz, frame_skip=10), gain parameterisation formula, core reward (+80 hold bonus corrected), shaping terms in prose
+  - 3.3 Domain Randomisation: episode randomisation, mid-episode disturbance, friction patch, rolling-contact friction caveat
+  - 3.4 Policy Architecture: PPO with clipped surrogate + GAE equations, observation table (dims 3–5 = normalised action with mapping sentence), frame stacking (0.2 s window), separate 2×64 Tanh actor/critic, hyperparameter table
+  - 3.5 Curriculum Learning: 4-phase table, integral windup motivation
+  - 3.6 Classical Baseline: fixed-gain [0,0,0] action, same two-loop architecture
+  - 3.7 Brake Integral Reset: mechanism description, forward-ref §5.4
+  - `chapter03/FIGURES_NEEDED.md` created — 4 diagrams needed: control loop block diagram (Fig 3.1), environment diagram (Fig 3.2), curriculum schedule (Fig 3.3), network architecture (Fig 3.4)
+  - Citations needed: MuJoCo, PPO (Schulman et al. 2017), orthogonal initialisation
+
 ## In Progress
 
-- Chapter 3 — System Design and Methodology
+- Chapter 4 — Experimental Setup
 
 ## Next Up
 
-- Chapter 3 — System Design and Methodology
 - Chapter 4 — Experimental Setup
 - Chapter 5 — Results and Analysis
 - Chapter 6 — Discussion and Limitations
