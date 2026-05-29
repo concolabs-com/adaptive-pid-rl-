@@ -36,10 +36,10 @@ Domain-randomised PPO agent that schedules PID gains in real time for a simulate
 | 1 — Introduction | `chapter01/chapter1_introduction.md` | Done |
 | 2 — Background | `chapter02/chapter2_background.md` | Done |
 | 3 — Methodology | `chapter03/chapter3_methodology.md` | Done |
-| 4 — Experimental Setup | `chapter04/chapter4_experimental_setup.md` | Not started |
-| 5 — Results | `chapter05/chapter5_results.md` | Not started |
-| 6 — Discussion | `chapter06/chapter6_discussion.md` | Not started |
-| 7 — Conclusion | `chapter07/chapter7_conclusion.md` | Not started |
+| 4 — Experimental Setup | `chapter04/chapter4_experimental_setup.md` | Done |
+| 5 — Results | `chapter05/chapter5_results.md` | Done |
+| 6 — Discussion | `chapter06/chapter6_discussion.md` | Done |
+| 7 — Conclusion | `chapter07/chapter7_conclusion.md` | Done |
 
 ## Figures needed
 
