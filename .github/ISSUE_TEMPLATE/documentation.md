@@ -7,7 +7,7 @@ assignees: ""
 ---
 
 ## Documentation Area
-Which document or section needs updating?
+Which document or section needs updating? (e.g. `CONTRIBUTING.md`, `thesis_doc/chapter03/`, `README.md`)
 
 ## Required Change
 Describe what should be added, removed, or corrected.
@@ -16,7 +16,6 @@ Describe what should be added, removed, or corrected.
 Why is this documentation change needed?
 
 ## Checklist
-- [ ] README updated
-- [ ] Setup instructions updated
-- [ ] Environment variables documented
-- [ ] Deployment notes updated
+- [ ] Correct chapter / file identified
+- [ ] Numbers and terminology match `THESIS_WRITING_GUIDE.md` and `CONTEXT.md`
+- [ ] Cross-references updated if section structure changed

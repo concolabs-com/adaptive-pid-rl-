@@ -1,5 +1,7 @@
 # Pull Request
 
+Closes #<!-- issue number -->
+
 ## Summary
 Briefly describe what this PR changes.
 
@@ -30,8 +32,9 @@ Explain why this change is needed.
 Add screenshots or recordings for UI changes.
 
 ## Checklist
-- [ ] My branch name follows the project naming convention
-- [ ] My commits follow Conventional Commits
+- [ ] Branch name follows `{name}/{issue-number}-{description}` convention
+- [ ] PR title follows Conventional Commits (`type: description`)
+- [ ] `Closes #N` is filled in above
 - [ ] I have not committed secrets, credentials, or `.env` files
 - [ ] I have updated documentation where needed
 - [ ] This PR is ready for review

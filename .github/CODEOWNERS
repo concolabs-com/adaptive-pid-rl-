@@ -1,14 +1,14 @@
-# Example CODEOWNERS file
-# Replace usernames with your actual GitHub usernames.
+# CODEOWNERS
+# Replace @owner with the actual GitHub username of the repo maintainer.
 
 # Default owner for everything
-* @your-github-username
+* @warnakulasooriya-dabarera
 
-# Frontend
-/src/components/ @your-github-username
+# GitHub workflows and repo config
+/.github/ @warnakulasooriya-dabarera
 
-# Workflows
-/.github/workflows/ @your-github-username
+# Thesis documents
+/thesis_doc/ @warnakulasooriya-dabarera
 
-# Documentation
-/docs/ @your-github-username
+# Training scripts and environment
+/thesis_writing/ @warnakulasooriya-dabarera
