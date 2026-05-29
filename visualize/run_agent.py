@@ -39,8 +39,8 @@ from utils.wrappers import ObservationFeatureSelectWrapper
 
 SCENARIOS = {
     "standard": {"mass": 10.0, "friction": 1.0},
-    "heavy": {"mass": 20.0, "friction": 0.2},
-    "light": {"mass": 5.0, "friction": 2.0},
+    "heavy":    {"mass": 20.0, "friction": 0.2},
+    "light":    {"mass":  5.0, "friction": 2.0},
 }
 
 
@@ -82,9 +82,7 @@ def build_env(args: argparse.Namespace) -> gym.Env:
     return env
 
 
-def apply_scenario(
-    base_env: AdaptiveSuspensionEnv, mass: float, friction: float
-) -> None:
+def apply_scenario(base_env: AdaptiveSuspensionEnv, mass: float, friction: float) -> None:
     """Set mass/friction on the MuJoCo model and update context observation."""
     nominal_mass = float(base_env.model.body_mass[1])
     nominal_friction = float(base_env.model.geom_friction[0, 0])
@@ -141,11 +139,7 @@ def run(args: argparse.Namespace) -> None:
     viewer = mujoco.viewer.launch_passive(base_env.model, base_env.data)
     viewer.sync()
 
-    scenario_label = (
-        args.scenario
-        if args.scenario
-        else f"mass={mass:.1f}kg, friction={friction:.2f}"
-    )
+    scenario_label = args.scenario if args.scenario else f"mass={mass:.1f}kg, friction={friction:.2f}"
     obs_shape = env.observation_space.shape
 
     print()
@@ -154,9 +148,7 @@ def run(args: argparse.Namespace) -> None:
     print(f"  Model    : {model_path.name}")
     print(f"  Target   : {args.target:.1f} m")
     print(f"  Scenario : {scenario_label}")
-    print(
-        f"  Obs shape: {obs_shape}  (stack={args.stack_size} × dims={obs_shape[0] // args.stack_size})"
-    )
+    print(f"  Obs shape: {obs_shape}  (stack={args.stack_size} × dims={obs_shape[0] // args.stack_size})")
     print("=" * 56)
     print()
     print("  >> Press ENTER in this terminal to START  <<")
@@ -167,83 +159,54 @@ def run(args: argparse.Namespace) -> None:
         env.close()
         return
 
-    for ep in range(args.repeat):
-
-        obs, _ = env.reset(seed=args.seed)
-
-        apply_scenario(base_env, mass, friction)
-
-        viewer.sync()
-
-        print(f"\nEpisode {ep+1}/{args.repeat}")
-        print(">> Press ENTER to START <<")
-
-        if not wait_for_enter("", viewer):
-           break
-
-        print("Running...")
+    print("Running...")
 
     step = 0
     total_reward = 0.0
     done = False
-    final_info = {}
+    final_info: dict = {}
 
     with torch.no_grad():
-
         while not done and viewer.is_running():
-
-            obs_arr = np.asarray(obs,dtype=np.float32)
-
-            obs_tensor = torch.from_numpy(
-                obs_arr
-            ).unsqueeze(0)
-
-            action = agent.actor_mean(
-                obs_tensor.reshape(1,-1)
-            )
-
-            action = torch.clamp(
-                action,
-                -1.0,
-                1.0
-            )
-
+            obs_arr = np.asarray(obs, dtype=np.float32)
+            obs_tensor = torch.from_numpy(obs_arr).unsqueeze(0)
+            # Deterministic: use actor mean directly (same as training eval)
+            action = agent.actor_mean(obs_tensor.reshape(1, -1))
+            action = torch.clamp(action, -1.0, 1.0)
             action_np = action.squeeze(0).numpy()
 
-            obs,reward,terminated,truncated,info = \
-                env.step(action_np)
-
+            obs, reward, terminated, truncated, info = env.step(action_np)
             total_reward += float(reward)
-
             done = terminated or truncated
-
             final_info = info
-
             step += 1
 
             viewer.sync()
+            time.sleep(0.01)  # ~real-time at 100 Hz control rate
 
-            time.sleep(0.01)
+    pos = final_info.get("state", {}).get("pos", float("nan"))
+    vel = final_info.get("state", {}).get("vel", float("nan"))
+    gains = final_info.get("gains", {})
 
-    print(
-        f"Episode {ep+1} done "
-        f"({step} steps)"
-    )
+    print()
+    print("=" * 56)
+    print(f"  Episode done  — {step} steps")
+    print(f"  Final position : {pos:.4f} m  (target={args.target:.1f} m)")
+    print(f"  Final velocity : {vel:.4f} m/s")
+    print(f"  Total reward   : {total_reward:.1f}")
+    if gains:
+        print(f"  Final gains    : Kp={gains.get('kp',0):.3f}  Ki={gains.get('ki',0):.3f}  Kd={gains.get('kd',0):.3f}")
+    print("=" * 56)
+    print()
 
     if viewer.is_running():
-
-        print(
-        "\nAll episodes finished."
-    )
-
-    wait_for_enter(
-        "Press ENTER to CLOSE",
-        viewer
-    )
+        print("  >> Press ENTER in this terminal to CLOSE  <<")
+        print()
+        wait_for_enter("", viewer)
 
     viewer.close()
-
     env.close()
+
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
@@ -251,74 +214,36 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument("--repeat", type=int, default=1, help="Number of episodes")
-    p.add_argument(
-        "--model", required=True, help="Path to .pth checkpoint (agent state dict)"
-    )
+
+    p.add_argument("--model", required=True,
+                   help="Path to .pth checkpoint (agent state dict)")
 
     # Episode configuration
-    p.add_argument(
-        "--target",
-        type=float,
-        default=5.0,
-        help="Target position in metres (default: 5.0)",
-    )
-    p.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Random seed for episode reset (default: 42)",
-    )
-    p.add_argument(
-        "--max-steps",
-        type=int,
-        default=500,
-        help="Maximum episode steps (default: 500)",
-    )
-    p.add_argument(
-        "--hold-steps",
-        type=int,
-        default=25,
-        help="Consecutive steps within tolerance to count as success (default: 25)",
-    )
-    p.add_argument(
-        "--tolerance",
-        type=float,
-        default=0.05,
-        help="Position tolerance in metres (default: 0.05)",
-    )
+    p.add_argument("--target", type=float, default=5.0,
+                   help="Target position in metres (default: 5.0)")
+    p.add_argument("--seed", type=int, default=42,
+                   help="Random seed for episode reset (default: 42)")
+    p.add_argument("--max-steps", type=int, default=500,
+                   help="Maximum episode steps (default: 500)")
+    p.add_argument("--hold-steps", type=int, default=25,
+                   help="Consecutive steps within tolerance to count as success (default: 25)")
+    p.add_argument("--tolerance", type=float, default=0.05,
+                   help="Position tolerance in metres (default: 0.05)")
 
     # Model architecture (must match training)
-    p.add_argument(
-        "--stack-size",
-        type=int,
-        default=10,
-        help="Observation stack size — must match training (default: 10)",
-    )
-    p.add_argument(
-        "--obs-dims",
-        type=int,
-        default=8,
-        help="Obs dims per step: 8=context-aware (stage5a), 6=blind (stage5b) (default: 8)",
-    )
+    p.add_argument("--stack-size", type=int, default=10,
+                   help="Observation stack size — must match training (default: 10)")
+    p.add_argument("--obs-dims", type=int, default=8,
+                   help="Obs dims per step: 8=context-aware (stage5a), 6=blind (stage5b) (default: 8)")
 
     # Physics scenario
     sc_group = p.add_mutually_exclusive_group()
-    sc_group.add_argument(
-        "--scenario", choices=list(SCENARIOS.keys()), help="Preset physics scenario"
-    )
-    sc_group.add_argument(
-        "--mass",
-        type=float,
-        default=10.0,
-        help="Car mass in kg (default: 10.0). Ignored if --scenario is set.",
-    )
-    p.add_argument(
-        "--friction",
-        type=float,
-        default=1.0,
-        help="Floor friction coefficient (default: 1.0). Ignored if --scenario is set.",
-    )
+    sc_group.add_argument("--scenario", choices=list(SCENARIOS.keys()),
+                          help="Preset physics scenario")
+    sc_group.add_argument("--mass", type=float, default=10.0,
+                          help="Car mass in kg (default: 10.0). Ignored if --scenario is set.")
+    p.add_argument("--friction", type=float, default=1.0,
+                   help="Floor friction coefficient (default: 1.0). Ignored if --scenario is set.")
 
     # Gain schedule (thesis_v4_cliff defaults)
     p.add_argument("--gain-base-kp", type=float, default=1.8)
