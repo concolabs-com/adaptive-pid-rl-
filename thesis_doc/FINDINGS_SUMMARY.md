@@ -38,7 +38,7 @@ Classical baseline: fixed PID at Kp = 1.8, Ki = 0.7, Kd = 0.5, action = [0, 0, 0
 |-------|----------|---------|-------------|-----------|-----|
 | Fixed PID | Standard | 100% | 1.116 | 0 m | 2.65 |
 | Fixed PID | Heavy & Slippery | 100% | 1.136 | 0 m | 2.79 |
-| Fixed PID | Light & Grippy | 100% | 1.254 | 0 m | 2.66 |
+| Fixed PID | Light & Grippy | 100% | 1.254 | 0 m | 2.94 |
 | **Stage 5a** | Standard | **100%** | 1.254 | 0 m | 2.68 |
 | **Stage 5a** | Heavy & Slippery | **100%** | 1.278 | 0 m | 2.82 |
 | **Stage 5a** | Light & Grippy | **100%** | 1.390 | 0 m | 2.97 |

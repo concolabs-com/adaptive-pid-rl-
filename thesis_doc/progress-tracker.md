@@ -12,6 +12,15 @@ Update this file after every meaningful thesis writing change.
 
 ## Completed
 
+- **Chapter 4 — Experimental Setup** (`chapter04/chapter4_experimental_setup.md`)
+  - ~1,500 words, 5 sections
+  - 4.1 Evaluation Protocol: 25-step hold, ±0.05 m, 5 metrics, honest seed asymmetry (static = deterministic, dynamic = seeds vary disturbance)
+  - 4.2 Evaluation Scenarios: 3 static + 5 dynamic (incl. OOD at ~2× mass ceiling), rolling-contact caveat referenced
+  - 4.3 Agents Evaluated: concise comparison table, cross-refs Ch3 for architecture details
+  - 4.4 Reproducibility: artefact paths, single-seed limitation flagged
+  - 4.5 Hardware and Compute: RTX 3070 Laptop, i7-11800H, 32 GB, Python 3.10, ~45 min/agent
+  - **Bug fixed**: `dt` in settling-time computation was `model.opt.timestep` (0.002 s) instead of `env.dt` (0.02 s) — all reported settling times were 10× too small. Fixed in `stage_baseline_fixed_pid.py` and `stage2_meta_rl_reproduction.py`. **Must rerun all evaluations before writing Ch5.**
+
 - **Chapter 1 — Introduction** (`chapter1_introduction.md`)
   - ~1,800 words, 7 sections
   - Covers: PID motivation, classical adaptive control failure (incl. MRAC failure), RL gain-scheduling framing, two research questions (RQ1: feasibility, RQ2: context benefit), 3 numbered contributions, key findings preview, chapter outline
@@ -42,12 +51,10 @@ Update this file after every meaningful thesis writing change.
 
 ## In Progress
 
-- Chapter 4 — Experimental Setup
+- Nothing currently active
 
 ## Next Up
 
-- Chapter 4 — Experimental Setup
-- Chapter 5 — Results and Analysis
 - Chapter 6 — Discussion and Limitations
 - Chapter 7 — Conclusion and Future Work
 
