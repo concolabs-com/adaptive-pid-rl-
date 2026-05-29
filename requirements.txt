@@ -14,7 +14,7 @@ ImageIO==2.37.3
 importlib_resources==7.1.0
 Jinja2==3.1.6
 MarkupSafe==3.0.3
-mpmath==1.3.0
+mpmath==1.4.1
 mujoco==3.8.1
 networkx==3.4.2
 numpy==2.2.6
