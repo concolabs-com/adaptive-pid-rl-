@@ -20,15 +20,18 @@ What should happen?
 ## Actual Result
 What happened instead?
 
-## Screenshots / Logs
-Add screenshots, logs, or error messages if available.
+## Error Output / Logs
+Paste the full error message or traceback.
+
+```
+paste here
+```
 
 ## Environment
 - OS:
-- Browser:
-- Device:
-- App version / commit:
-- Node version, if applicable:
+- Python version:
+- Script / module affected:
+- Commit hash or branch:
 
 ## Additional Context
 Add any other useful information.
