@@ -12,6 +12,13 @@ Update this file after every meaningful thesis writing change.
 
 ## Completed
 
+- **Chapter 6 — Discussion and Limitations** (`chapter06/chapter6_discussion.md`)
+  - ~1,950 words, 3 sections
+  - 6.1 Main Findings Interpreted: synthesis frame (no data repetition) — RQ1 verdict, RQ2 verdict, confound framed as methodological contribution
+  - 6.2 Limitations: tiered treatment — L3/L5/L6 full paragraphs, L1/L4 brief, L2 dropped; L6 uses assertive + single qualifier for no-reset convergence cause
+  - 6.3 Practical Implications: Stage 5b as deployable result, 14–15% penalty discussion, sim-to-real caveat, frame stacking reach paragraph, bridge to Ch7
+  - **Design decisions:** Option A synthesis framing, dual confound framing (contribution in 6.1, limit in 6.2), tiered limitations, narrow+reach 6.3, assertive L6 tone
+
 - **Chapter 4 — Experimental Setup** (`chapter04/chapter4_experimental_setup.md`)
   - ~1,500 words, 5 sections
   - 4.1 Evaluation Protocol: 25-step hold, ±0.05 m, 5 metrics, honest seed asymmetry (static = deterministic, dynamic = seeds vary disturbance)
@@ -49,14 +56,64 @@ Update this file after every meaningful thesis writing change.
   - `chapter03/FIGURES_NEEDED.md` created — 4 diagrams needed: control loop block diagram (Fig 3.1), environment diagram (Fig 3.2), curriculum schedule (Fig 3.3), network architecture (Fig 3.4)
   - Citations needed: MuJoCo, PPO (Schulman et al. 2017), orthogonal initialisation
 
+- **Chapter 7 — Conclusion and Future Work** (`chapter07/chapter7_conclusion.md`)
+  - ~1,050 words, 2 sections
+  - 7.1 Conclusions: verdict-first opening, RQ1/RQ2 with inline bold labels (2–3 sentences + key number each), third paragraph for confound as Contribution 3
+  - 7.2 Future Work: 5 items (bold names), tiered — GRU/LSTM + cross-system transfer as Tier 1 (full justification), multi-seed/disturbance window/friction decoupling as Tier 2 (one sentence each)
+  - **Design decisions:** verdict-first opening (no motivation recap), inline bold RQ labels not headers, GRU/LSTM as pure future work (partial code in repo is dev artefact not thesis experiment), cross-system transfer included from Ch1 §1.7
+
+## Current Phase
+
+- Complete — all chapters written. Thesis draft complete.
+
+## TODO — Citations
+
+| # | Chapter | Placeholder | Action needed |
+|---|---------|-------------|---------------|
+| C1 | Ch1 §1.1 | `[^astrom1995]` | Add full reference entry: Åström & Hägglund (1995), *PID Controllers: Theory, Design, and Tuning*, 2nd ed., ISA. Verify page/chapter for the 95% stat. |
+| C2 | Ch2 §2.5 | `CITATION_NEEDED` (×2) | Find and add citations for (a) model-based online RL-PID work and (b) model-free online RL-PID work. These plug the gap statement. |
+| C3 | Ch2 §2.5 | `[^shi2020]` | Verify venue (journal/conference name) and page numbers. Currently unconfirmed. |
+| C4 | Ch3 §3.2 | MuJoCo citation | Add Todorov et al. (2012) MuJoCo reference. |
+| C5 | Ch3 §3.4 | PPO citation | Add Schulman et al. (2017), *Proximal Policy Optimization Algorithms*, arXiv:1707.06347. |
+| C6 | Ch3 §3.4 | Orthogonal initialisation | Find and add citation for orthogonal weight initialisation (Saxe et al. 2013 or similar). |
+
+## TODO — Figures
+
+| # | Figure | Chapter/Section | Description | Tool |
+|---|--------|-----------------|-------------|------|
+| F1 | Fig 3.1 | Ch3 §3.1 + §3.3 | Two-loop control architecture block diagram (RL 50 Hz outer / PID 500 Hz inner, gain mapping, frame stack buffer, optional Stage 5a dashed path) | draw.io / TikZ |
+| F2 | Fig 3.2 | Ch3 §3.1 | Environment schematic: vehicle at x=0, target, braking zone (|error|<2m), friction patch (x=1.5–2.4m) | PowerPoint / Inkscape |
+| F3 | Fig 3.3 | Ch3 §3.4 | Curriculum schedule: 4-phase bar/timeline, x-axis = timesteps 0–1M, y-axis = target distance, phases at 0/250K/500K/750K/1M | matplotlib / draw.io |
+| F4 | Fig 3.4 | Ch3 §3.3 | Policy network architecture: 80-dim (5a) / 60-dim (5b) input → 2×64 Tanh MLP → actor head (3-dim Gaussian + tanh) + critic head (scalar). Check `model.py` for exact sizes. | NN-SVG / draw.io |
+
+> Full specs for all figures: `chapter03/FIGURES_NEEDED.md`
+
+## TODO — Content Gaps
+
+| # | Chapter | Item | Action |
+|---|---------|------|--------|
+| G1 | Ch2 §2.2 | MRAC failure elaboration | Add brief sentence elaborating the MRAC 0% success failure (currently only a one-sentence note with forward-ref §6.2). Mentioned in Session Notes. |
+
+## TODO — Supervisor Confirmation
+
+| # | Item | Status |
+|---|------|--------|
+| S1 | Thesis title | Working title confirmed in writing, but needs supervisor sign-off |
+| S2 | Contributions format | Currently numbered 3-item list in Ch1 §1.5 — confirm format is acceptable |
+| S3 | Citation style | IEEE / APA / Harvard — confirm with university requirements before finalising reference list |
+
+## TODO — Final Pass
+
+| # | Task |
+|---|------|
+| P1 | Proofreading pass — full thesis read-through for consistency, flow, and typos |
+| P2 | Check all cross-references (§X.Y forward/back-refs) still point to correct sections |
+| P3 | Verify all numbers in text match `THESIS_WRITING_GUIDE.md` ground truth |
+| P4 | Confirm citation style and reformat all references accordingly (after S3 resolved) |
+
 ## In Progress
 
 - Nothing currently active
-
-## Next Up
-
-- Chapter 6 — Discussion and Limitations
-- Chapter 7 — Conclusion and Future Work
 
 ## Open Questions
 
