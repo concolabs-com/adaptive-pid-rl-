@@ -32,15 +32,14 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 import torch
-
 from environment.agents.model import Agent
 from environment.envs.adaptive_suspension import AdaptiveSuspensionEnv
 from utils.wrappers import ObservationFeatureSelectWrapper
 
 SCENARIOS = {
     "standard": {"mass": 10.0, "friction": 1.0},
-    "heavy":    {"mass": 20.0, "friction": 0.2},
-    "light":    {"mass":  5.0, "friction": 2.0},
+    "heavy": {"mass": 20.0, "friction": 0.2},
+    "light": {"mass": 5.0, "friction": 2.0},
 }
 
 
@@ -215,35 +214,43 @@ def parse_args() -> argparse.Namespace:
         epilog=__doc__,
     )
 
-    p.add_argument("--model", required=True,
-                   help="Path to .pth checkpoint (agent state dict)")
+    p.add_argument("--model", required=True, help="Path to .pth checkpoint (agent state dict)")
 
     # Episode configuration
-    p.add_argument("--target", type=float, default=5.0,
-                   help="Target position in metres (default: 5.0)")
-    p.add_argument("--seed", type=int, default=42,
-                   help="Random seed for episode reset (default: 42)")
-    p.add_argument("--max-steps", type=int, default=500,
-                   help="Maximum episode steps (default: 500)")
-    p.add_argument("--hold-steps", type=int, default=25,
-                   help="Consecutive steps within tolerance to count as success (default: 25)")
-    p.add_argument("--tolerance", type=float, default=0.05,
-                   help="Position tolerance in metres (default: 0.05)")
+    p.add_argument("--target", type=float, default=5.0, help="Target position in metres (default: 5.0)")
+    p.add_argument("--seed", type=int, default=42, help="Random seed for episode reset (default: 42)")
+    p.add_argument("--max-steps", type=int, default=500, help="Maximum episode steps (default: 500)")
+    p.add_argument(
+        "--hold-steps",
+        type=int,
+        default=25,
+        help="Consecutive steps within tolerance to count as success (default: 25)",
+    )
+    p.add_argument("--tolerance", type=float, default=0.05, help="Position tolerance in metres (default: 0.05)")
 
     # Model architecture (must match training)
-    p.add_argument("--stack-size", type=int, default=10,
-                   help="Observation stack size — must match training (default: 10)")
-    p.add_argument("--obs-dims", type=int, default=8,
-                   help="Obs dims per step: 8=context-aware (stage5a), 6=blind (stage5b) (default: 8)")
+    p.add_argument(
+        "--stack-size", type=int, default=10, help="Observation stack size — must match training (default: 10)"
+    )
+    p.add_argument(
+        "--obs-dims",
+        type=int,
+        default=8,
+        help="Obs dims per step: 8=context-aware (stage5a), 6=blind (stage5b) (default: 8)",
+    )
 
     # Physics scenario
     sc_group = p.add_mutually_exclusive_group()
-    sc_group.add_argument("--scenario", choices=list(SCENARIOS.keys()),
-                          help="Preset physics scenario")
-    sc_group.add_argument("--mass", type=float, default=10.0,
-                          help="Car mass in kg (default: 10.0). Ignored if --scenario is set.")
-    p.add_argument("--friction", type=float, default=1.0,
-                   help="Floor friction coefficient (default: 1.0). Ignored if --scenario is set.")
+    sc_group.add_argument("--scenario", choices=list(SCENARIOS.keys()), help="Preset physics scenario")
+    sc_group.add_argument(
+        "--mass", type=float, default=10.0, help="Car mass in kg (default: 10.0). Ignored if --scenario is set."
+    )
+    p.add_argument(
+        "--friction",
+        type=float,
+        default=1.0,
+        help="Floor friction coefficient (default: 1.0). Ignored if --scenario is set.",
+    )
 
     # Gain schedule (thesis_v4_cliff defaults)
     p.add_argument("--gain-base-kp", type=float, default=1.8)

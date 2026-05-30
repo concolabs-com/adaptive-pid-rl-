@@ -22,19 +22,26 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 OUTPUT_DIR = "benchmark_results/stage5b_blind_cliff"
 
 STAGE5B_ARGS = [
-    "--protocol-preset",   "thesis_v4_cliff",
-    "--obs-keep-dims",     "6",
-    "--stack-size",        "10",
-    "--total-timesteps",   "1000000",
-    "--num-envs",          "4",
-    "--num-steps",         "2048",
+    "--protocol-preset",
+    "thesis_v4_cliff",
+    "--obs-keep-dims",
+    "6",
+    "--stack-size",
+    "10",
+    "--total-timesteps",
+    "1000000",
+    "--num-envs",
+    "4",
+    "--num-steps",
+    "2048",
     "--curriculum-enabled",
-    "--curriculum-spec",   "1:3:0.25,1:5:0.25,1:7:0.25,1:10:0.25",
-    "--output-dir",        OUTPUT_DIR,
+    "--curriculum-spec",
+    "1:3:0.25,1:5:0.25,1:7:0.25,1:10:0.25",
+    "--output-dir",
+    OUTPUT_DIR,
 ]
 
 

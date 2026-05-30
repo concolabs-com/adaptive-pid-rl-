@@ -26,28 +26,31 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.distributions.normal import Normal
-
 from environment.agents.model import Agent
 from environment.envs.adaptive_suspension import AdaptiveSuspensionEnv
 from utils.wrappers import ObservationFeatureSelectWrapper
-
 
 # ---------------------------------------------------------------------------
 # Environment factory
 # ---------------------------------------------------------------------------
 
-def make_env(target_pos: float, max_episode_steps: int, hold_steps: int,
-             obs_dims: int, stack_size: int) -> gym.Env:
+
+def make_env(target_pos: float, max_episode_steps: int, hold_steps: int, obs_dims: int, stack_size: int) -> gym.Env:
     env = AdaptiveSuspensionEnv(
         target_pos=target_pos,
         hold_steps=hold_steps,
         max_episode_steps=max_episode_steps,
         stop_tolerance=0.05,
         # Gain schedule (thesis_v4_cliff protocol)
-        gain_base_kp=1.8, gain_base_ki=0.7, gain_base_kd=0.5,
-        gain_delta_kp=1.0, gain_delta_ki=0.6, gain_delta_kd=2.0,
-        gain_range_kp=(0.0, 6.0), gain_range_ki=(0.0, 3.0), gain_range_kd=(0.0, 5.0),
+        gain_base_kp=1.8,
+        gain_base_ki=0.7,
+        gain_base_kd=0.5,
+        gain_delta_kp=1.0,
+        gain_delta_ki=0.6,
+        gain_delta_kd=2.0,
+        gain_range_kp=(0.0, 6.0),
+        gain_range_ki=(0.0, 3.0),
+        gain_range_kd=(0.0, 5.0),
         approach_progress_cutoff_m=2.0,
         near_approach_zone_m=2.0,
         brake_zone_vel_sq_coef=10.0,
@@ -73,6 +76,7 @@ def make_env(target_pos: float, max_episode_steps: int, hold_steps: int,
 # PPO training
 # ---------------------------------------------------------------------------
 
+
 def train(args: argparse.Namespace, out_dir: Path) -> Agent:
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -95,17 +99,17 @@ def train(args: argparse.Namespace, out_dir: Path) -> Agent:
 
     # PPO rollout buffers (num_steps steps × 1 env)
     N = args.num_steps
-    obs_buf    = torch.zeros((N,) + env.observation_space.shape).to(device)
-    act_buf    = torch.zeros((N,) + env.action_space.shape).to(device)
-    logp_buf   = torch.zeros(N).to(device)
-    rew_buf    = torch.zeros(N).to(device)
-    done_buf   = torch.zeros(N).to(device)
-    val_buf    = torch.zeros(N).to(device)
+    obs_buf = torch.zeros((N,) + env.observation_space.shape).to(device)
+    act_buf = torch.zeros((N,) + env.action_space.shape).to(device)
+    logp_buf = torch.zeros(N).to(device)
+    rew_buf = torch.zeros(N).to(device)
+    done_buf = torch.zeros(N).to(device)
+    val_buf = torch.zeros(N).to(device)
 
     # Logging
     episode_rewards: list[float] = []
-    episode_lengths: list[int]   = []
-    update_steps:    list[int]   = []
+    episode_lengths: list[int] = []
+    update_steps: list[int] = []
 
     total_steps = 0
     num_updates = args.timesteps // N
@@ -126,20 +130,16 @@ def train(args: argparse.Namespace, out_dir: Path) -> Agent:
             done_buf[step] = next_done
 
             with torch.no_grad():
-                action, logprob, _, value = agent.get_action_and_value(
-                    next_obs.unsqueeze(0)
-                )
+                action, logprob, _, value = agent.get_action_and_value(next_obs.unsqueeze(0))
                 val_buf[step] = value.squeeze()
 
-            act_buf[step]  = action.squeeze(0)
+            act_buf[step] = action.squeeze(0)
             logp_buf[step] = logprob.squeeze()
 
-            obs_np, reward, terminated, truncated, info = env.step(
-                action.squeeze(0).cpu().numpy()
-            )
+            obs_np, reward, terminated, truncated, info = env.step(action.squeeze(0).cpu().numpy())
             rew_buf[step] = torch.tensor(float(reward))
             next_done = torch.tensor(float(terminated or truncated)).to(device)
-            next_obs  = torch.from_numpy(np.asarray(obs_np, dtype=np.float32)).to(device)
+            next_obs = torch.from_numpy(np.asarray(obs_np, dtype=np.float32)).to(device)
 
             if terminated or truncated:
                 ep_r = info.get("episode", {}).get("r", float("nan"))
@@ -168,11 +168,11 @@ def train(args: argparse.Namespace, out_dir: Path) -> Agent:
             returns = advantages + val_buf
 
         # ── PPO update ───────────────────────────────────────────────────
-        flat_obs  = obs_buf.reshape((-1,) + env.observation_space.shape)
-        flat_act  = act_buf.reshape((-1,) + env.action_space.shape)
+        flat_obs = obs_buf.reshape((-1,) + env.observation_space.shape)
+        flat_act = act_buf.reshape((-1,) + env.action_space.shape)
         flat_logp = logp_buf.reshape(-1)
-        flat_adv  = advantages.reshape(-1)
-        flat_ret  = returns.reshape(-1)
+        flat_adv = advantages.reshape(-1)
+        flat_ret = returns.reshape(-1)
 
         flat_adv = (flat_adv - flat_adv.mean()) / (flat_adv.std() + 1e-8)
 
@@ -180,15 +180,13 @@ def train(args: argparse.Namespace, out_dir: Path) -> Agent:
             perm = torch.randperm(N)
             for start in range(0, N, minibatch_size):
                 idx = perm[start : start + minibatch_size]
-                mb_obs  = flat_obs[idx]
-                mb_act  = flat_act[idx]
+                mb_obs = flat_obs[idx]
+                mb_act = flat_act[idx]
                 mb_logp = flat_logp[idx]
-                mb_adv  = flat_adv[idx]
-                mb_ret  = flat_ret[idx]
+                mb_adv = flat_adv[idx]
+                mb_ret = flat_ret[idx]
 
-                _, new_logp, entropy, new_val = agent.get_action_and_value(
-                    mb_obs, mb_act
-                )
+                _, new_logp, entropy, new_val = agent.get_action_and_value(mb_obs, mb_act)
                 new_val = new_val.squeeze()
 
                 log_ratio = new_logp - mb_logp
@@ -232,11 +230,14 @@ def train(args: argparse.Namespace, out_dir: Path) -> Agent:
 
     # Save training curve
     import pandas as pd
-    df = pd.DataFrame({
-        "step":           update_steps,
-        "episode_reward": episode_rewards,
-        "episode_length": episode_lengths,
-    })
+
+    df = pd.DataFrame(
+        {
+            "step": update_steps,
+            "episode_reward": episode_rewards,
+            "episode_length": episode_lengths,
+        }
+    )
     df.to_csv(out_dir / "training_curve.csv", index=False)
 
     # Plot training curve
@@ -269,9 +270,9 @@ def _plot_training_curve(rewards: list[float], steps: list[int], out_dir: Path) 
 # ---------------------------------------------------------------------------
 
 EVAL_SCENARIOS = [
-    {"name": "Standard",      "mass": 10.0, "friction": 1.0},
-    {"name": "Heavy+Slippery","mass": 20.0, "friction": 0.2},
-    {"name": "Light+Grippy",  "mass":  5.0, "friction": 2.0},
+    {"name": "Standard", "mass": 10.0, "friction": 1.0},
+    {"name": "Heavy+Slippery", "mass": 20.0, "friction": 0.2},
+    {"name": "Light+Grippy", "mass": 5.0, "friction": 2.0},
 ]
 
 
@@ -295,9 +296,9 @@ def evaluate(agent: Agent, args: argparse.Namespace, out_dir: Path) -> None:
         )
         # Set fixed physics
         base_env = env.unwrapped
-        nominal_mass     = float(base_env.model.body_mass[1])
+        nominal_mass = float(base_env.model.body_mass[1])
         nominal_friction = float(base_env.model.geom_friction[0, 0])
-        base_env.model.body_mass[1]       = scenario["mass"]
+        base_env.model.body_mass[1] = scenario["mass"]
         base_env.model.geom_friction[0, 0] = scenario["friction"]
         base_env.set_disturbance_context(
             mass_scale=scenario["mass"] / max(nominal_mass, 1e-6),
@@ -323,28 +324,30 @@ def evaluate(agent: Agent, args: argparse.Namespace, out_dir: Path) -> None:
                 velocities.append(float(info["state"]["vel"]))
                 t += dt
 
-        trajectories[scenario["name"]] = {
-            "time": times, "pos": positions, "vel": velocities
-        }
+        trajectories[scenario["name"]] = {"time": times, "pos": positions, "vel": velocities}
 
         final_error = abs(positions[-1] - args.target) if positions else float("nan")
-        overshoot   = max(0.0, max(positions) - args.target) if positions else float("nan")
-        settled     = final_error < args.tolerance
-        records.append({
-            "scenario":    scenario["name"],
-            "mass_kg":     scenario["mass"],
-            "friction":    scenario["friction"],
-            "steps":       len(positions),
-            "duration_s":  round(t, 3),
-            "final_error_m": round(final_error, 4),
-            "overshoot_m":   round(overshoot, 4),
-            "settled":     settled,
-        })
+        overshoot = max(0.0, max(positions) - args.target) if positions else float("nan")
+        settled = final_error < args.tolerance
+        records.append(
+            {
+                "scenario": scenario["name"],
+                "mass_kg": scenario["mass"],
+                "friction": scenario["friction"],
+                "steps": len(positions),
+                "duration_s": round(t, 3),
+                "final_error_m": round(final_error, 4),
+                "overshoot_m": round(overshoot, 4),
+                "settled": settled,
+            }
+        )
 
         env.close()
-        print(f"  {scenario['name']:20s}  steps={len(positions):4d}  "
-              f"final_err={final_error:.4f}m  overshoot={overshoot:.4f}m  "
-              f"settled={'YES' if settled else 'NO'}")
+        print(
+            f"  {scenario['name']:20s}  steps={len(positions):4d}  "
+            f"final_err={final_error:.4f}m  overshoot={overshoot:.4f}m  "
+            f"settled={'YES' if settled else 'NO'}"
+        )
 
     # Save CSV
     df = pd.DataFrame(records)
@@ -355,11 +358,9 @@ def evaluate(agent: Agent, args: argparse.Namespace, out_dir: Path) -> None:
     _plot_trajectories(trajectories, args.target, out_dir)
 
 
-def _plot_trajectories(
-    trajectories: dict, target: float, out_dir: Path
-) -> None:
+def _plot_trajectories(trajectories: dict, target: float, out_dir: Path) -> None:
     colors = ["steelblue", "tomato", "seagreen"]
-    names  = list(trajectories.keys())
+    names = list(trajectories.keys())
 
     # Displacement-time
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -398,6 +399,7 @@ def _plot_trajectories(
 # Config save
 # ---------------------------------------------------------------------------
 
+
 def save_config(args: argparse.Namespace, out_dir: Path) -> None:
     config = vars(args).copy()
     config["timestamp"] = datetime.now().isoformat()
@@ -409,28 +411,31 @@ def save_config(args: argparse.Namespace, out_dir: Path) -> None:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Train adaptive suspension PPO agent (laptop-friendly)")
 
-    p.add_argument("--run-name", default=None,
-                   help="Output folder name under training_runs/. Defaults to timestamp.")
-    p.add_argument("--timesteps", type=int, default=100_000,
-                   help="Total training timesteps (default: 100000, ~5-10 min on CPU)")
-    p.add_argument("--target", type=float, default=5.0,
-                   help="Target position in metres (default: 5.0)")
+    p.add_argument("--run-name", default=None, help="Output folder name under training_runs/. Defaults to timestamp.")
+    p.add_argument(
+        "--timesteps", type=int, default=100_000, help="Total training timesteps (default: 100000, ~5-10 min on CPU)"
+    )
+    p.add_argument("--target", type=float, default=5.0, help="Target position in metres (default: 5.0)")
     p.add_argument("--seed", type=int, default=42)
 
     # Model / env
-    p.add_argument("--obs-dims", type=int, default=6,
-                   help="Obs dims per step: 6=blind, 8=context-aware (default: 6, faster to train)")
+    p.add_argument(
+        "--obs-dims",
+        type=int,
+        default=6,
+        help="Obs dims per step: 6=blind, 8=context-aware (default: 6, faster to train)",
+    )
     p.add_argument("--stack-size", type=int, default=10)
     p.add_argument("--max-episode-steps", type=int, default=500)
     p.add_argument("--hold-steps", type=int, default=25)
     p.add_argument("--tolerance", type=float, default=0.05)
 
     # PPO hyperparams
-    p.add_argument("--num-steps", type=int, default=512,
-                   help="Rollout length per update (default: 512)")
+    p.add_argument("--num-steps", type=int, default=512, help="Rollout length per update (default: 512)")
     p.add_argument("--num-minibatches", type=int, default=4)
     p.add_argument("--update-epochs", type=int, default=4)
     p.add_argument("--lr", type=float, default=3e-4)

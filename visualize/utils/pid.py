@@ -1,6 +1,3 @@
-import numpy as np
-
-
 class PIDController:
     def __init__(self, kp=1.0, ki=0.0, kd=0.0, setpoint=0.0, output_limits=(None, None)):
         self.kp = kp

@@ -1,11 +1,12 @@
-import gymnasium as gym
-import numpy as np
-import mujoco
-import os
 import math
+import os
+
+import mujoco
+import numpy as np
 from gymnasium import spaces
 from gymnasium.envs.mujoco import MujocoEnv
 from utils.pid import PIDController
+
 
 class AdaptiveSuspensionEnv(MujocoEnv):
     metadata = {"render_modes": ["human", "rgb_array", "depth_array"], "render_fps": 50}
@@ -52,31 +53,37 @@ class AdaptiveSuspensionEnv(MujocoEnv):
     ):
         # Locate the XML file
         xml_path = os.path.join(os.path.dirname(__file__), "assets", "car_model.xml")
-        
+
         # Frame skip: Control interval (e.g., 100Hz for RL, 1000Hz for Physics)
-        frame_skip = 10 
-        
+        frame_skip = 10
+
         # Initialize MuJoCo Environment
         # gymnasium > 0.26 uses __init__ differently, ensuring compatibility
         observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(8,), dtype=np.float64)
-        
-        super().__init__(model_path=xml_path, frame_skip=frame_skip, observation_space=observation_space, render_mode=render_mode, **kwargs)
-        
+
+        super().__init__(
+            model_path=xml_path,
+            frame_skip=frame_skip,
+            observation_space=observation_space,
+            render_mode=render_mode,
+            **kwargs,
+        )
+
         # Gain-scheduling action in normalized coordinates.
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
 
         # Schedule gains around a stable PI baseline instead of spanning huge absolute ranges.
-        self.base_gains = {'kp': float(gain_base_kp), 'ki': float(gain_base_ki), 'kd': float(gain_base_kd)}
-        self.gain_delta = {'kp': float(gain_delta_kp), 'ki': float(gain_delta_ki), 'kd': float(gain_delta_kd)}
+        self.base_gains = {"kp": float(gain_base_kp), "ki": float(gain_base_ki), "kd": float(gain_base_kd)}
+        self.gain_delta = {"kp": float(gain_delta_kp), "ki": float(gain_delta_ki), "kd": float(gain_delta_kd)}
         self.gain_ranges = {
-            'kp': (float(min(gain_range_kp)), float(max(gain_range_kp))),
-            'ki': (float(min(gain_range_ki)), float(max(gain_range_ki))),
-            'kd': (float(min(gain_range_kd)), float(max(gain_range_kd))),
+            "kp": (float(min(gain_range_kp)), float(max(gain_range_kp))),
+            "ki": (float(min(gain_range_ki)), float(max(gain_range_ki))),
+            "kd": (float(min(gain_range_kd)), float(max(gain_range_kd))),
         }
-        
+
         # Target State (Position)
         self.target_pos = float(target_pos)
-        
+
         # Hold-phase tracking for reward shaping
         self.hold_steps = int(hold_steps)
         self.max_episode_steps = int(max_episode_steps)
@@ -109,7 +116,7 @@ class AdaptiveSuspensionEnv(MujocoEnv):
 
         # Internal PID Controller
         self.pid = PIDController(setpoint=self.target_pos, output_limits=(-1.0, 1.0))
-        
+
         # History for Observation
         self._prev_action = np.zeros(3)
         self._drive_signs = (1.0, 1.0)
@@ -207,20 +214,22 @@ class AdaptiveSuspensionEnv(MujocoEnv):
 
     def _get_obs(self):
         # Get ground truth state from MuJoCo
-        qpos = self.data.qpos.flat[:1] # Position (x)
-        qvel = self.data.qvel.flat[:1] # Velocity (dx)
-        
+        qpos = self.data.qpos.flat[:1]  # Position (x)
+        qvel = self.data.qvel.flat[:1]  # Velocity (dx)
+
         error = self.target_pos - qpos[0]
-        
+
         # Observation: [Pos, Vel, Error, Prev_Kp, Prev_Ki, Prev_Kd, MassScale, FrictionScale]
         # Including previous action helps the policy know what gains it applied recently
-        return np.concatenate([
-            qpos, 
-            qvel, 
-            [error], 
-            self._prev_action,
-            self._disturbance_context,
-        ])
+        return np.concatenate(
+            [
+                qpos,
+                qvel,
+                [error],
+                self._prev_action,
+                self._disturbance_context,
+            ]
+        )
 
     def step(self, action):
         action = np.asarray(action, dtype=np.float32)
@@ -235,18 +244,18 @@ class AdaptiveSuspensionEnv(MujocoEnv):
         action_rate_cost = float(np.sum((action - prev_action) ** 2))
 
         # Map normalized action to gain deltas around baseline gains.
-        kp = float(np.clip(self.base_gains['kp'] + self.gain_delta['kp'] * float(action[0]), *self.gain_ranges['kp']))
-        ki = float(np.clip(self.base_gains['ki'] + self.gain_delta['ki'] * float(action[1]), *self.gain_ranges['ki']))
-        kd = float(np.clip(self.base_gains['kd'] + self.gain_delta['kd'] * float(action[2]), *self.gain_ranges['kd']))
+        kp = float(np.clip(self.base_gains["kp"] + self.gain_delta["kp"] * float(action[0]), *self.gain_ranges["kp"]))
+        ki = float(np.clip(self.base_gains["ki"] + self.gain_delta["ki"] * float(action[1]), *self.gain_ranges["ki"]))
+        kd = float(np.clip(self.base_gains["kd"] + self.gain_delta["kd"] * float(action[2]), *self.gain_ranges["kd"]))
 
         # Keep normalized action in observation so inputs stay well-conditioned.
         self._prev_action = action
-        
+
         self.do_simulation(action, self.frame_skip)
-        
+
         # 3. Observation & Reward
         obs = self._get_obs()
-        
+
         # Extract state and build reward around progress + tracking quality.
         pos = float(obs[0])
         vel = float(obs[1])
@@ -342,14 +351,14 @@ class AdaptiveSuspensionEnv(MujocoEnv):
         if self._steps_in_tolerance >= self.hold_steps:
             done = True
             reward += 80.0
-            
+
         # Truncation / Termination
         # If car flies away
         runaway_limit = max(15.0, self.target_pos + 5.0)
         if pos > runaway_limit or pos < -2.0:
             done = True
             reward -= 100.0
-        
+
         # Auto-truncate at max_episode_steps and increment step counter
         self._current_step += 1
         if self._current_step >= self.max_episode_steps:
@@ -374,7 +383,7 @@ class AdaptiveSuspensionEnv(MujocoEnv):
                 "hard_overshoot_violation": overshoot_violation,
             },
         }
-        
+
         if self.render_mode == "human":
             self.render()
 
@@ -384,10 +393,10 @@ class AdaptiveSuspensionEnv(MujocoEnv):
         # Override to implement PID loop inside the physics stepping.
         action = np.asarray(action, dtype=np.float32)
         action = np.clip(action, -1.0, 1.0)
-        kp = float(np.clip(self.base_gains['kp'] + self.gain_delta['kp'] * float(action[0]), *self.gain_ranges['kp']))
-        ki = float(np.clip(self.base_gains['ki'] + self.gain_delta['ki'] * float(action[1]), *self.gain_ranges['ki']))
-        kd = float(np.clip(self.base_gains['kd'] + self.gain_delta['kd'] * float(action[2]), *self.gain_ranges['kd']))
-        
+        kp = float(np.clip(self.base_gains["kp"] + self.gain_delta["kp"] * float(action[0]), *self.gain_ranges["kp"]))
+        ki = float(np.clip(self.base_gains["ki"] + self.gain_delta["ki"] * float(action[1]), *self.gain_ranges["ki"]))
+        kd = float(np.clip(self.base_gains["kd"] + self.gain_delta["kd"] * float(action[2]), *self.gain_ranges["kd"]))
+
         # Set gains directly to avoid corrupting _prev_error with a dummy measurement=0 call.
         self.pid.kp = kp
         self.pid.ki = ki
@@ -414,12 +423,12 @@ class AdaptiveSuspensionEnv(MujocoEnv):
                 if current_vel > safe_v:
                     brake_cmd = -np.clip(self.safety_brake_k * (current_vel - safe_v), 0.0, 1.0)
                     ctrl = min(ctrl, float(brake_cmd))
-            
+
             # 3. Apply to Actuator
             self.data.ctrl[0] = self._drive_signs[0] * ctrl
             self.data.ctrl[1] = self._drive_signs[1] * ctrl
-            
+
             # 4. Step Physics
             mujoco.mj_step(self.model, self.data)
-            
+
             # Render if needed (usually handled by viewer, but for offscreen...)

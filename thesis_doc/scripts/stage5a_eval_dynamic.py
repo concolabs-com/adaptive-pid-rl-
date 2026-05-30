@@ -19,13 +19,20 @@ MODEL_PATH = "benchmark_results/stage5a_context_cliff/seed_7/models/meta_rl_agen
 OUTPUT_DIR = "benchmark_results/stage5a_dynamic_eval"
 
 ARGS = [
-    "--protocol-preset",   "thesis_v4_cliff",
-    "--stack-size",        "10",
-    "--total-timesteps",   "0",
-    "--num-envs",          "1",
-    "--seeds",             "7",
-    "--output-dir",        OUTPUT_DIR,
-    "--init-model-path",   MODEL_PATH,
+    "--protocol-preset",
+    "thesis_v4_cliff",
+    "--stack-size",
+    "10",
+    "--total-timesteps",
+    "0",
+    "--num-envs",
+    "1",
+    "--seeds",
+    "7",
+    "--output-dir",
+    OUTPUT_DIR,
+    "--init-model-path",
+    MODEL_PATH,
     "--disturbance-in-eval",
     "--eval-only",
 ]
