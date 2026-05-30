@@ -1,43 +1,16 @@
-
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 from torch.distributions.normal import Normal
+
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.orthogonal_(layer.weight, std)
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
 
-class Agent(nn.Module):
-    def __init__(self, envs):
-        super().__init__()
-        # Check if envs is a vector env or single env to get shapes
-        if hasattr(envs, "single_observation_space"):
-            obs_shape = np.prod(envs.single_observation_space.shape)
-            action_shape = np.prod(envs.single_action_space.shape)
-        else:
-            obs_shape = np.prod(envs.observation_space.shape)
-            action_shape = np.prod(envs.action_space.shape)
-            
-        self.critic = nn.Sequential(
-            layer_init(nn.Linear(obs_shape, 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, 1), std=1.0),
-        )
-        self.actor_mean = nn.Sequential(
-            layer_init(nn.Linear(obs_shape, 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, action_shape), std=0.01),
-        )
-        self.actor_logstd = nn.Parameter(torch.full((1, action_shape), -1.0))
-        self.recurrent = False
-        self.hidden_size = 128
 
+class Agent(nn.Module):
     def __init__(self, envs, recurrent: bool = False, recurrent_hidden_size: int = 128):
         super().__init__()
         if hasattr(envs, "single_observation_space"):

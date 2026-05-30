@@ -1,6 +1,11 @@
 # Full frozen environment — generated from venv with pip freeze
 # Python 3.10 | Windows | RTX 3070 Laptop
-# Reinstall: pip install -r requirements.txt
+
+# Dev tools (linting/formatting)
+black==24.10.0
+isort==5.13.2
+flake8==7.1.1
+pre-commit==3.8.0
 
 absl-py==2.4.0
 cloudpickle==3.1.2

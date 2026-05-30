@@ -21,18 +21,19 @@ import argparse
 import sys
 from pathlib import Path
 
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
+
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import gymnasium as gym
+import gymnasium as gym  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
 
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
-from envs.adaptive_suspension import AdaptiveSuspensionEnv
-from agents.domain_randomization import DomainRandomizationWrapper
+from agents.domain_randomization import DomainRandomizationWrapper  # noqa: E402
+from envs.adaptive_suspension import AdaptiveSuspensionEnv  # noqa: E402
 
 # thesis_v4_cliff env params (integral reset ON — for comparison with Stage 5a/5b)
 ENV_KWARGS_V4 = dict(
@@ -118,22 +119,22 @@ DYNAMIC_RANDOMIZATION_CONFIG = {
 }
 
 SCENARIOS_V4 = [
-    ("Standard",           10.0, 1.0),
+    ("Standard", 10.0, 1.0),
     ("Heavy and Slippery", 20.0, 0.2),
-    ("Light and Grippy",    5.0, 2.0),
-    ("OOD Ultra Heavy",    35.0, 1.0),
+    ("Light and Grippy", 5.0, 2.0),
+    ("OOD Ultra Heavy", 35.0, 1.0),
     ("OOD Ultra Slippery", 20.0, 0.05),
 ]
 
 SCENARIOS_V5 = [
-    ("Standard",           10.0, 1.0),
+    ("Standard", 10.0, 1.0),
     ("Heavy and Slippery", 20.0, 0.2),
-    ("Light and Grippy",    5.0, 2.0),
+    ("Light and Grippy", 5.0, 2.0),
 ]
 
-TOLERANCE  = 0.05
+TOLERANCE = 0.05
 HOLD_STEPS = 25
-MAX_STEPS  = 5000
+MAX_STEPS = 5000
 TARGET_POS = 5.0
 EVAL_SEEDS = list(range(70000, 70010))
 
@@ -180,37 +181,37 @@ def run_episode(env, scenario_name: str, mass: float, friction: float, seed: int
             break
 
     positions_arr = np.asarray(positions)
-    errors_arr    = TARGET_POS - positions_arr
+    errors_arr = TARGET_POS - positions_arr
     settling_s, settled = compute_settling_time(errors_arr, dt)
-    overshoot       = float(max(np.max(positions_arr) - TARGET_POS, 0.0))
-    iae             = float(np.sum(np.abs(errors_arr)) * dt)
+    overshoot = float(max(np.max(positions_arr) - TARGET_POS, 0.0))
+    iae = float(np.sum(np.abs(errors_arr)) * dt)
     final_abs_error = float(abs(errors_arr[-1]))
-    success         = 1 if (settled and final_abs_error <= TOLERANCE) else 0
+    success = 1 if (settled and final_abs_error <= TOLERANCE) else 0
 
     return {
-        "seed":               seed,
-        "scenario":           scenario_name,
-        "episodes":           1,
+        "seed": seed,
+        "scenario": scenario_name,
+        "episodes": 1,
         "settling_time_mean": settling_s,
-        "overshoot_mean":     overshoot,
-        "iae_mean":           iae,
+        "overshoot_mean": overshoot,
+        "iae_mean": iae,
         "final_abs_error_mean": final_abs_error,
-        "success_rate":       100.0 if success else 0.0,
-        "mean_reward":        float(np.mean(rewards)),
-        "_positions":         positions,
-        "_velocities":        velocities,
-        "_kp":                kp_hist,
-        "_ki":                ki_hist,
-        "_kd":                kd_hist,
-        "_dt":                dt,
+        "success_rate": 100.0 if success else 0.0,
+        "mean_reward": float(np.mean(rewards)),
+        "_positions": positions,
+        "_velocities": velocities,
+        "_kp": kp_hist,
+        "_ki": ki_hist,
+        "_kd": kd_hist,
+        "_dt": dt,
     }
 
 
 def plot_trajectories(scenario_results: dict, out_path: Path, title: str, scenarios: list) -> None:
     COLORS = {
-        "Standard":           "#2196F3",
+        "Standard": "#2196F3",
         "Heavy and Slippery": "#F44336",
-        "Light and Grippy":   "#4CAF50",
+        "Light and Grippy": "#4CAF50",
     }
     fig, axes = plt.subplots(len(scenarios), 3, figsize=(15, 4 * len(scenarios)))
     fig.suptitle(title, fontsize=12)
@@ -221,7 +222,7 @@ def plot_trajectories(scenario_results: dict, out_path: Path, title: str, scenar
     for i, (scenario_name, mass, friction) in enumerate(scenarios):
         r = scenario_results[scenario_name]
         dt = r["_dt"]
-        t  = np.arange(len(r["_positions"])) * dt
+        t = np.arange(len(r["_positions"])) * dt
         color = COLORS.get(scenario_name, "steelblue")
 
         ax0 = axes[i, 0]
@@ -253,10 +254,15 @@ def plot_trajectories(scenario_results: dict, out_path: Path, title: str, scenar
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dynamic", action="store_true", default=False,
-                        help="Enable mid-episode disturbances + position patch")
-    parser.add_argument("--no-reset", action="store_true", default=False,
-                        help="Disable brake_integral_reset — compare against Stage 5a/5b-NR")
+    parser.add_argument(
+        "--dynamic", action="store_true", default=False, help="Enable mid-episode disturbances + position patch"
+    )
+    parser.add_argument(
+        "--no-reset",
+        action="store_true",
+        default=False,
+        help="Disable brake_integral_reset — compare against Stage 5a/5b-NR",
+    )
     args = parser.parse_args()
 
     if args.no_reset:
@@ -299,10 +305,12 @@ def main() -> int:
                 scenario_results_seed0[scenario_name] = r
 
         last = all_records[-1]
-        print(f"    settling={last['settling_time_mean']:.3f}s  "
-              f"overshoot={last['overshoot_mean']:.4f}m  "
-              f"success={last['success_rate']:.0f}%  "
-              f"final_err={last['final_abs_error_mean']:.4f}m")
+        print(
+            f"    settling={last['settling_time_mean']:.3f}s  "
+            f"overshoot={last['overshoot_mean']:.4f}m  "
+            f"success={last['success_rate']:.0f}%  "
+            f"final_err={last['final_abs_error_mean']:.4f}m"
+        )
 
     env.close()
 
@@ -324,11 +332,13 @@ def main() -> int:
         sub = df[df["scenario"] == scenario_name]
         if sub.empty:
             continue
-        print(f"{scenario_name:<22} "
-              f"{sub['settling_time_mean'].mean():>11.3f} "
-              f"{sub['overshoot_mean'].mean():>13.4f} "
-              f"{sub['success_rate'].mean():>9.1f} "
-              f"{sub['final_abs_error_mean'].mean():>12.4f}")
+        print(
+            f"{scenario_name:<22} "
+            f"{sub['settling_time_mean'].mean():>11.3f} "
+            f"{sub['overshoot_mean'].mean():>13.4f} "
+            f"{sub['success_rate'].mean():>9.1f} "
+            f"{sub['final_abs_error_mean'].mean():>12.4f}"
+        )
     print("=" * 65)
 
     return 0

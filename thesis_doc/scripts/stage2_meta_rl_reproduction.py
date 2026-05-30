@@ -1,6 +1,5 @@
 import argparse
 import json
-import os
 import random
 import time
 from dataclasses import asdict, dataclass
@@ -9,18 +8,15 @@ from typing import Any
 
 import gymnasium as gym
 import matplotlib.pyplot as plt
-import mujoco
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from tqdm import tqdm
-
 from agents.domain_randomization import DomainRandomizationWrapper
 from agents.model import Agent
 from envs.adaptive_suspension import AdaptiveSuspensionEnv
-
+from tqdm import tqdm
 
 EXP_NAME = "Stage2_MetaRL_Reproduction"
 DEFAULT_STACK_SIZE = 10
@@ -443,9 +439,7 @@ def parse_curriculum_spec(spec: str) -> list[tuple[float, float, float]]:
     for part in parts:
         fields = [f.strip() for f in part.split(":")]
         if len(fields) != 3:
-            raise ValueError(
-                "Each curriculum phase must be min:max:fraction, e.g. 1:3:0.34"
-            )
+            raise ValueError("Each curriculum phase must be min:max:fraction, e.g. 1:3:0.34")
         t_min, t_max, frac = float(fields[0]), float(fields[1]), float(fields[2])
         if t_min <= 0.0 or t_max <= 0.0:
             raise ValueError("Curriculum target ranges must be positive.")
@@ -829,7 +823,9 @@ def ppo_update(agent, optimizer, buffers, trackers, config: Stage2Config, seed: 
     }
 
 
-def build_training_row(seed: int, update: int, lr: float, rollout_reward_total: float, trackers, update_stats: dict) -> dict:
+def build_training_row(
+    seed: int, update: int, lr: float, rollout_reward_total: float, trackers, update_stats: dict
+) -> dict:
     recent_returns = trackers["completed_returns"][-20:]
     recent_lengths = trackers["completed_lengths"][-20:]
     mean_recent_return = float(np.mean(recent_returns)) if recent_returns else float(rollout_reward_total)
@@ -841,7 +837,8 @@ def build_training_row(seed: int, update: int, lr: float, rollout_reward_total: 
         "global_step": int(trackers["global_step"]),
         "lr": lr,
         "rollout_reward_total": rollout_reward_total,
-        "rollout_reward_mean": rollout_reward_total / float(trackers["next_obs"].shape[0] * trackers["next_obs"].shape[1]),
+        "rollout_reward_mean": rollout_reward_total
+        / float(trackers["next_obs"].shape[0] * trackers["next_obs"].shape[1]),
         "completed_episodes": len(trackers["completed_returns"]),
         "recent_episode_return_mean": mean_recent_return,
         "recent_episode_length_mean": mean_recent_length,
@@ -908,10 +905,12 @@ def train_one_seed(seed: int, config: Stage2Config) -> tuple[Path, pd.DataFrame]
         reward_text = f"{training_rows[-1]['recent_episode_return_mean']:.2f}"
         if np.isnan(training_rows[-1]["recent_episode_return_mean"]):
             reward_text = "nan"
+        t_min = trackers.get("current_target_min", config.target_min)
+        t_max = trackers.get("current_target_max", config.target_max)
         pbar.set_postfix(
             reward=reward_text,
             episodes=len(trackers["completed_returns"]),
-            target_range=f"{trackers.get('current_target_min', config.target_min):.1f}-{trackers.get('current_target_max', config.target_max):.1f}",
+            target_range=f"{t_min:.1f}-{t_max:.1f}",
         )
 
     seed_dir = trackers["seed_dir"]
@@ -964,7 +963,9 @@ def run_eval_episode(eval_env, agent, scenario: EvalScenario, seed: int, config:
     positions_arr = np.asarray(positions, dtype=np.float64)
     errors_arr = eval_env.unwrapped.target_pos - positions_arr
     settling_time_s, settled = compute_settling_time(errors_arr, dt, config.tolerance, timeout_s)
-    overshoot = max(float(np.max(positions_arr) - eval_env.unwrapped.target_pos), 0.0) if len(positions_arr) else float("nan")
+    overshoot = (
+        max(float(np.max(positions_arr) - eval_env.unwrapped.target_pos), 0.0) if len(positions_arr) else float("nan")
+    )
     iae = float(np.sum(np.abs(errors_arr)) * dt) if len(positions_arr) else float("nan")
     final_abs_error = float(abs(errors_arr[-1])) if len(positions_arr) else float("nan")
     success = compute_hold_success(errors_arr, config.tolerance, config.hold_steps) if len(positions_arr) else 0
@@ -1362,11 +1363,11 @@ def protocol_preset_defaults(preset_name: str) -> dict[str, Any]:
             "terminal_hold_velocity_threshold": 0.08,
             # Wider gains: Ki down to 0 (suppress windup), Kd up to 8 (brake with residual integral)
             "gain_base_kp": 1.8,
-            "gain_delta_kp": 1.8,    # Kp: 0.0 to 3.6
+            "gain_delta_kp": 1.8,  # Kp: 0.0 to 3.6
             "gain_base_ki": 0.5,
-            "gain_delta_ki": 0.5,    # Ki: 0.0 to 1.0  (can fully suppress integral)
+            "gain_delta_ki": 0.5,  # Ki: 0.0 to 1.0  (can fully suppress integral)
             "gain_base_kd": 1.0,
-            "gain_delta_kd": 7.0,    # Kd: 0.0 to 8.0  (strong braking authority)
+            "gain_delta_kd": 7.0,  # Kd: 0.0 to 8.0  (strong braking authority)
             "gain_range_kp": "0.0,8.0",
             "gain_range_ki": "0.0,3.0",
             "gain_range_kd": "0.0,10.0",
@@ -1409,7 +1410,7 @@ def protocol_preset_defaults(preset_name: str) -> dict[str, Any]:
             # stuck at -300 everywhere, zero gradient toward braking behavior.
             # The existing -2.0*overshoot/step penalty already punishes overshooting.
             "safety_speed_governor_enabled": False,
-            "safety_hard_overshoot_m": -1.0,   # disabled
+            "safety_hard_overshoot_m": -1.0,  # disabled
             "safety_overshoot_penalty": 0.0,
             "terminal_hold_bonus": 50.0,
             "terminal_hold_velocity_threshold": 0.08,
@@ -1423,11 +1424,11 @@ def protocol_preset_defaults(preset_name: str) -> dict[str, Any]:
             # (reduce Kp globally rather than raise Kd near target).
             "brake_zone_vel_sq_coef": 10.0,
             "near_approach_zone_m": 2.0,
-            "near_approach_coef": 0.0,         # disabled — was causing wrong gradient
+            "near_approach_coef": 0.0,  # disabled — was causing wrong gradient
             "near_target_zone_m": 0.8,
-            "near_target_coef": 0.0,           # disabled — same issue
+            "near_target_coef": 0.0,  # disabled — same issue
             "near_target_excess_thresh": 0.10,
-            "near_target_excess_coef": 0.0,    # disabled
+            "near_target_excess_coef": 0.0,  # disabled
             # Decel bonus: immediate reward for slowing down in braking zone
             "decel_bonus_coef": 10.0,
             # 20% of episodes start at target — agent experiences hold bonus immediately
@@ -1598,8 +1599,21 @@ def save_json_config(config: Stage2Config) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Stage 2: Meta-RL reproduction with multi-seed PPO training and evaluation.")
-    parser.add_argument("--protocol-preset", choices=["custom", "thesis_v1", "thesis_v2_curriculum", "thesis_v3_safety", "thesis_v4_cliff", "thesis_v5_no_reset"], default="custom")
+    parser = argparse.ArgumentParser(
+        description="Stage 2: Meta-RL reproduction with multi-seed PPO training and evaluation."
+    )
+    parser.add_argument(
+        "--protocol-preset",
+        choices=[
+            "custom",
+            "thesis_v1",
+            "thesis_v2_curriculum",
+            "thesis_v3_safety",
+            "thesis_v4_cliff",
+            "thesis_v5_no_reset",
+        ],
+        default="custom",
+    )
     parser.add_argument("--output-dir", default="benchmark_results/stage2_meta_rl_reproduction")
     parser.add_argument("--seeds", default=",".join(str(seed) for seed in DEFAULT_SEEDS))
     parser.add_argument("--total-timesteps", type=int, default=DEFAULT_TOTAL_TIMESTEPS)
@@ -1665,9 +1679,13 @@ def main() -> None:
     parser.add_argument("--safety-overshoot-penalty", type=float, default=200.0)
     parser.add_argument("--disturbance-in-eval", action="store_true", default=False)
     parser.add_argument("--eval-only", action="store_true", default=False)
-    parser.add_argument("--no-brake-integral-reset", dest="brake_integral_reset_enabled",
-                        action="store_false", default=True,
-                        help="Disable integral reset on braking zone entry — RL must learn windup prevention via gain scheduling")
+    parser.add_argument(
+        "--no-brake-integral-reset",
+        dest="brake_integral_reset_enabled",
+        action="store_false",
+        default=True,
+        help="Disable integral reset on braking zone entry — RL must learn windup prevention via gain scheduling",
+    )
     parser.add_argument("--init-model-path", type=str, default=None)
     parser.add_argument("--near-approach-zone-m", type=float, default=0.3)
     parser.add_argument("--near-approach-coef", type=float, default=0.75)
@@ -1721,7 +1739,9 @@ def main() -> None:
             {
                 "seed": seed,
                 "model_path": str(model_path),
-                "training_updates": int(training_df["update"].max()) if "update" in training_df.columns and not training_df.empty else 0,
+                "training_updates": (
+                    int(training_df["update"].max()) if "update" in training_df.columns and not training_df.empty else 0
+                ),
                 "eval_rows": int(len(eval_df)),
                 "mean_eval_reward": float(eval_df["mean_reward"].mean()),
             }

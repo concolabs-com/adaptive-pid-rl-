@@ -51,7 +51,9 @@ class DomainRandomizationWrapper(gym.Wrapper):
         self.nominal_car_inertia = model.body_inertia[self.car_body_id].copy()
         self.nominal_floor_friction = float(model.geom_friction[self.floor_geom_id, 0])
         self.nominal_chassis_rgba = model.geom_rgba[self.chassis_geom_id].copy() if self.chassis_geom_id >= 0 else None
-        self.nominal_patch_rgba = model.geom_rgba[self.patch_visual_geom_id].copy() if self.patch_visual_geom_id >= 0 else None
+        self.nominal_patch_rgba = (
+            model.geom_rgba[self.patch_visual_geom_id].copy() if self.patch_visual_geom_id >= 0 else None
+        )
 
         self.episode_base_mass = self.nominal_car_mass
         self.episode_base_friction = self.nominal_floor_friction
@@ -110,8 +112,12 @@ class DomainRandomizationWrapper(gym.Wrapper):
         half_height = float(self._cfg("patch_visual_half_height", 0.002))
 
         model.geom_pos[self.patch_visual_geom_id] = np.array([center_x, 0.0, half_height], dtype=np.float64)
-        model.geom_size[self.patch_visual_geom_id] = np.array([half_length, y_half_width, half_height], dtype=np.float64)
-        model.geom_rgba[self.patch_visual_geom_id] = np.array(self._cfg("patch_visual_rgba", (1.0, 0.55, 0.12, 0.7)), dtype=np.float64)
+        model.geom_size[self.patch_visual_geom_id] = np.array(
+            [half_length, y_half_width, half_height], dtype=np.float64
+        )
+        model.geom_rgba[self.patch_visual_geom_id] = np.array(
+            self._cfg("patch_visual_rgba", (1.0, 0.55, 0.12, 0.7)), dtype=np.float64
+        )
 
     def _set_mass_visual(self) -> None:
         if self.chassis_geom_id < 0 or not bool(self._cfg("mass_visual_enabled", True)):
