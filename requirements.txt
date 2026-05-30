@@ -9,7 +9,7 @@ pre-commit==3.8.0
 
 absl-py==2.4.0
 cloudpickle==3.1.2
-etils==1.14.0
+etils==1.13.0
 Farama-Notifications==0.0.6
 filelock==3.29.0
 fsspec==2026.4.0
