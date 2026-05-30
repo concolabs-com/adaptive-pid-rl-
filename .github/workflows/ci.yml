@@ -20,13 +20,13 @@ jobs:
           python-version: '3.10'
 
       - name: Install linting tools
-        run: pip install flake8 black isort
+        run: pip install flake8==7.1.1 black==24.10.0 isort==5.13.2
 
       - name: Check formatting (black)
-        run: black --check thesis_writing/ thesis_doc/ visualize/
+        run: black --check --line-length 120 --target-version py310 thesis_doc/ visualize/
 
       - name: Check import order (isort)
-        run: isort --check-only thesis_writing/ thesis_doc/ visualize/
+        run: isort --check-only --settings-path . thesis_doc/ visualize/
 
       - name: Lint Python files (flake8)
-        run: flake8 thesis_writing/ thesis_doc/ visualize/
+        run: flake8 --config setup.cfg thesis_doc/ visualize/
