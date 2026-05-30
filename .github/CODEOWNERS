@@ -10,5 +10,5 @@
 # Thesis documents
 /thesis_doc/ @warnakulasooriya-dabarera
 
-# Training scripts and environment
-/thesis_writing/ @warnakulasooriya-dabarera
+# Training scripts and visualizer
+/visualize/ @warnakulasooriya-dabarera

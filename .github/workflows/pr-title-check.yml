@@ -22,6 +22,8 @@ jobs:
             chore
             ci
             perf
+            security
+            revert
           requireScope: false
           subjectPattern: ^[a-z].+$
           subjectPatternError: |

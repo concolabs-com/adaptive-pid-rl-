@@ -25,6 +25,8 @@ jobs:
               chore:    'chore',
               ci:       'ci',
               perf:     'feature',
+              security: 'security',
+              revert:   'chore',
             };
 
             const match = title.match(/^(\w+)[\(!\:]/);
