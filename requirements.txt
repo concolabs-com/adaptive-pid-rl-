@@ -3,7 +3,7 @@
 
 # Dev tools (linting/formatting)
 black==24.10.0
-isort==5.13.2
+isort==8.0.1
 flake8==7.1.1
 pre-commit==3.8.0
 
