@@ -239,10 +239,21 @@ closed-loop trajectory excites.
 ## 2.5 Domain Randomization and Teacher–Student Learning
 
 **Domain randomization** trains across randomized simulator parameters so a
-single policy generalizes over the distribution [^tobin2017][^peng2018]. Given
-memory, the policy can become *adaptive* — conditioning behaviour on inferred
-parameters — rather than merely conservative-robust; which of the two emerges
-is what the probing analysis measures.
+single policy generalizes over the distribution [^tobin2017][^peng2018].
+Originally introduced to bridge the *visual* sim-to-real gap by randomizing
+textures and lighting, it was quickly extended to *dynamics* randomization —
+mass, friction, latency — for transferring control policies. A conceptual
+subtlety, central to this thesis, is that domain randomization admits two
+qualitatively different solutions. A memoryless policy can only become
+**conservative-robust**: it learns a single behaviour that is adequate (if
+suboptimal) across the whole parameter range, effectively marginalizing over
+the unknown $\psi$. A policy with memory can instead become **adaptive**:
+it infers $\psi$ (or a sufficient statistic of it) from the interaction history
+and conditions its behaviour on that inference. The two are behaviourally hard
+to distinguish from success rates alone — both can reach 100% — which is exactly
+why this thesis adds a probing analysis (RQ4) that inspects the *representation*
+to determine which has been learned, and a stack-depth ablation (RQ3) that
+measures how much memory the adaptive solution actually requires.
 
 **Context inference.** A line of work infers a latent context from history and
 conditions the policy on it: RL² embeds the learning loop in a recurrent policy
@@ -263,6 +274,23 @@ classical baselines comparable and the learned policy interpretable.
 **Frame stacking as memory.** Stacking $k$ past observations is the standard
 finite-memory device for POMDP control; the thesis tests how much depth this
 task actually needs and compares it against a learned recurrent memory (GRU).
+
+**Relation to meta-reinforcement learning.** Because the agent "adapts to a new
+task (parameter setting) at test time", the work is adjacent to meta-RL, and an
+earlier framing of this project used that label. It is dropped here for
+accuracy. Meta-RL proper — MAML-style methods that learn an initialization for
+fast gradient adaptation, or RL² which learns an update rule embedded in a
+recurrent policy — performs *learning* at test time, adjusting the policy from
+test-time experience. The agents here do no test-time learning: the policy
+weights are frozen at evaluation, and any adaptation is the forward pass of a
+fixed policy conditioning on context (teacher) or on a finite history (student).
+That is **amortized inference over a task distribution**, not meta-learning of
+an adaptation procedure. The honest description — domain-randomized PPO with a
+fixed observation window or recurrence — is preferred over the more fashionable
+"meta-RL", and the distinction matters precisely because a strict reading of the
+results (the flat stack ablation, the shallow gain schedule) shows the agents
+are doing something closer to robust amortized control than to online
+identification-and-retuning.
 
 ## 2.6 RL for PID Gain Scheduling, and the Gap
 

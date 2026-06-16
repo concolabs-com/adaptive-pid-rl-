@@ -133,3 +133,48 @@ plants, as the pendulum illustrates — and where the dynamics vary enough, and
 are identifiable enough, that per-episode adaptation buys real margin. Matching
 the method to that regime, rather than asserting a blanket advantage over PID,
 is the practical takeaway.
+
+## 6.5 Threats to Validity
+
+It is worth stating explicitly which conclusions could still be wrong and why,
+organized by the usual categories.
+
+**Construct validity — are we measuring what we claim?** The headline claim is
+about *adaptation to hidden dynamics*, but on the car the success metric
+saturates at 100% for every learned controller, so almost all discriminating
+power rests on settling time — a proxy that, as §5.6 shows, is sensitive to
+environment aids. The audit removed the most damaging confounds (the integral
+reset, the context bug), and the pendulum was added precisely because its
+binary survival metric does not saturate; the construct is therefore triangulated
+across a non-saturating plant rather than resting on the car's settling time
+alone. The probing analysis (RQ4) further grounds the "identification" claim in
+a measurement of the representation, not only of behaviour.
+
+**Internal validity — could an artifact still drive the result?** This is the
+category the audit targeted, and the discipline adopted (re-derive every number
+from corrected code, prefer genuine per-episode variance, compare against a
+*fair* baseline) was a direct response. Residual risks remain: the GRU
+speed advantage confounds recurrence with capacity (L4); the gain-regime
+analysis uses the hold phase, which understates scheduling (L3); and the
+context/blind comparison, though controlled, cannot rule out that a different
+architecture or training budget would shift the small RQ2 gap. None of these
+threatens the qualitative conclusions, but each bounds how hard a specific
+number should be pressed.
+
+**External validity — how far does it generalize?** Two plants, both simulated,
+both with a largely instantaneous identification problem (L1, and the flat
+stack ablation), and no hardware (L7). The thesis is careful to frame the blind
+agent as a *deployable-in-principle* result and to flag that the small blindness
+penalty is itself a property of this easy-identification regime — a harder
+plant could widen it. The sim-only scope is a deliberate boundary (§1.7), not an
+overlooked gap, and the integral-reset episode is offered as evidence that even
+the sim-to-sim step deserves scrutiny before any sim-to-real claim.
+
+**Statistical-conclusion validity — are the comparisons powered?** Five seeds
+bound but do not precisely estimate seed-level variance; the bootstrap CIs are
+wide and the ablations (stack depth, GRU) use one to two seeds and are reported
+as trends, not tested hypotheses (L5, §4.4). Where significance is claimed (the
+fast-scenario RQ2 gap) it survives Holm–Bonferroni correction at the seed level;
+where it is not (actuator-limited scenarios, the extreme-OOD pendulum corner)
+the text says so and claims nothing. The honest summary is that the *directions*
+are robust and the *magnitudes* are indicative.
