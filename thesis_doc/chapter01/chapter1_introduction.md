@@ -14,6 +14,23 @@ controller degrades. A vehicle that is heavier than the gains were tuned for
 overshoots its target; a motor that has weakened with wear becomes sluggish;
 a surface that has changed underfoot upsets a loop tuned for a different one.
 
+These are not hypothetical edge cases; they are the normal operating envelope
+of real motion systems. A warehouse automated-guided vehicle carries anything
+from an empty tote to a full pallet, a several-fold payload-mass swing within a
+single shift. A delivery drone's effective actuator authority falls as its
+battery sags and its propellers erode. A robot manipulator's effective inertia
+at the wrist depends on the tool and workpiece it happens to be holding. An
+electric drive's torque constant drifts with temperature over a duty cycle. In
+each case the plant the controller faces at run time differs — sometimes
+severely — from the plant it was tuned against, and in each case the deviating
+quantity is typically *not instrumented*: there is no payload-mass sensor on the
+AGV, no direct actuator-health signal on the drone. The control engineer's
+classical options are to tune conservatively for the worst case (sacrificing
+performance in the common case), to add the missing sensor (cost, weight,
+failure modes), or to build a gain schedule indexed by a measured proxy (which
+presumes the proxy exists and the schedule was designed in advance). This thesis
+asks what a learning approach can offer when none of those is attractive.
+
 In many deployments the operating regime is not merely uncertain but *hidden*:
 the controller has no sensor for payload mass, for actuator health, or for the
 properties of the surface it drives on. Re-tuning by hand for each condition is

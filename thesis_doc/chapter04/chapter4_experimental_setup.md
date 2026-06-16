@@ -129,11 +129,32 @@ size is **Cliff's delta** (rank-based, robust to timeout truncation). Families
 of related comparisons are corrected with **Holm–Bonferroni**, reporting raw
 and adjusted $p$.
 
+**Worked example of the seed-level test.** Take the Standard scenario,
+context vs blind. Each agent yields five per-seed settling means (one per
+training seed, each itself averaged over ten episodes); the context means
+cluster near 13.7 s, the blind near 14.6 s, with per-seed standard deviations
+of ~0.7 s. Welch's statistic is $t = (\bar x_c - \bar x_b)/\sqrt{s_c^2/5 +
+s_b^2/5}$; with a ~0.85 s difference and ~0.7 s within-group spread this gives
+$t\approx 1.9$ on ~8 effective degrees of freedom (Welch–Satterthwaite),
+$p\approx 0.09$ raw — and after Holm–Bonferroni over the eight scenarios, the
+Standard difference does *not* clear $\alpha=0.05$, whereas the larger-gap fast
+scenarios (Light Strong Motor, +12.8%) do. Cliff's delta on the same seed means
+is $\delta\approx 0.4$ (medium). This is exactly why the thesis reports RQ2 as a
+*regime-dependent trend that is significant on the fast scenarios and within
+noise on the slow ones*, rather than a single global $p$-value: with five seeds
+the test is honestly underpowered for the smaller gaps, and saying so is more
+defensible than over-claiming. The 95% bootstrap CI for the context Standard
+mean (10,000 resamples of the five seed means) is roughly $13.7 \pm 0.6$ s —
+wide, as five points require, and reported as such.
+
 What is *not* claimed: five seeds bound but do not precisely estimate seed-level
 variance, so CIs are wide and stated as such; episode-level pooling is not
 treated as independent sampling of the training process; swept-parameter curves
 (mass, actuator, stack depth) are descriptive trends with per-point dispersion,
-not hypothesis tests at every point.
+not hypothesis tests at every point. Where a single-seed ablation is reported
+(stack depth, GRU eval) it is explicitly a *trend*, and no inferential claim is
+attached to a difference smaller than the seed-level spread measured on the
+five-seed pair.
 
 ## 4.5 Reproducibility and Compute
 
