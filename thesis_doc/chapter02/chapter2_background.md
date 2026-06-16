@@ -267,10 +267,27 @@ longitudinal car dynamics under wheel torque, mass enters only through
 $\ddot{x} = F/m$ (observable during acceleration), actuator strength sets the
 saturated cruise speed $v_{\max}\propto\kappa$ (observable during cruise), and
 sliding friction does not bind while the wheels roll without slip (not
-observable). Chapter 5 confirms this structure empirically through the probing
-analysis, connecting the learning result to classical identifiability: the
-information available to the blind agent is exactly the information its
-closed-loop trajectory excites.
+observable).
+
+This can be made precise in the language of classical identifiability. A
+parameter is identifiable from a data record only if the record is *persistently
+excited* in the direction of that parameter's effect — informally, only if the
+trajectory contains a manoeuvre whose outcome depends on the parameter. Reading
+the cruise-velocity ODE of §3.2 backwards: during the **acceleration** phase the
+velocity obeys $v(t) = v_{\max}(1 - e^{-t/\tau_v})$ with $\tau_v = m r_w^2/2b$,
+so the early slope and curvature of $v(t)$ pin down $\tau_v$ and hence $m$ —
+mass is excited by acceleration. During the **cruise** phase $v\to v_{\max} =
+\kappa\,\tau(u_{\max})r_w/b$, a level that depends on $\kappa$ but not on $m$ —
+actuator strength is excited by cruising. **Friction** enters the dynamics only
+through a slip term that the low operating torques never activate, so no
+manoeuvre in the achievable trajectory excites it; it is structurally
+non-identifiable here, not merely hard to estimate. The prediction is therefore
+sharp and falsifiable: a decoder reading the trajectory (or a policy's
+representation of it) should recover $m$ from the acceleration phase, $\kappa$
+from the cruise phase, and $\mu$ not at all. Chapter 5's probing analysis
+confirms exactly this phase structure, connecting the learning result to the
+identifiability theory: the information available to the blind agent is exactly
+the information its closed-loop trajectory excites — no more, and no less.
 
 ## 2.5 Domain Randomization and Teacher–Student Learning
 
