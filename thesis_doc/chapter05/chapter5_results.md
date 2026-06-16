@@ -1,261 +1,564 @@
 # Chapter 5 — Results and Analysis
 
-This chapter presents the experimental results for all three agents evaluated across static and dynamic scenarios, and analyses the key findings in depth. Section 5.1 describes the training dynamics of both learned agents. Section 5.2 presents static evaluation results, where physics parameters remain fixed throughout each episode. Section 5.3 presents dynamic evaluation results, including mid-episode disturbances and out-of-distribution conditions. Section 5.4 analyses a critical experimental confound — the `brake_integral_reset` mechanism — and its effect on the interpretation of the Fixed PID speed advantage.
+This chapter reports the corrected results, organized by research question.
+Section 5.1 covers training. Section 5.2 answers RQ1 (feasibility). Section 5.3
+answers RQ2 (privileged context) with the scenario suite and the actuator
+sweep. Section 5.4 answers RQ3 (memory: stack depth and recurrence).
+Section 5.5 answers RQ4 (representation probing). Section 5.6 reports the
+classical baselines and the integral-reset confound. Section 5.7 analyses task
+discriminativeness. Section 5.8 reports the mid-approach shock probe.
+Section 5.9 examines the learned gain regimes. Section 5.10 reports the
+pendulum transfer. All settling times use $\Delta t = 0.02$ s; all learned-
+agent numbers are over five seeds and evaluation protocol v2 unless noted.
+
+> **Provenance.** The numbers here supersede an earlier draft that contained a
+> 10× settling-time unit error, a context-observation bug, a wrong-target
+> baseline measurement, a strawman MRAC configuration, and a non-discriminative
+> mass-only task. Section 5.6 and Chapter 6 discuss the corrections; the full
+> log is in `AUDIT_FINDINGS.md`.
 
 ---
 
-## 5.1 Training Convergence
-
-Both the Context-Aware Agent (Stage 5a) and the Blind Agent (Stage 5b) were trained for 1,000,000 timesteps using PPO with training seed 7. Learning curves for both agents are shown in Figures 5.1 and 5.2.
-
-![Stage 5a learning curve](figures/training/stage5a_learning_curve.png)
-*Figure 5.1 — Stage 5a (Context-Aware Agent) training curve over 1,000,000 timesteps. Curriculum transitions at 250K, 500K, and 750K steps are visible as step changes in episodic return.*
-
-![Stage 5b learning curve](figures/training/stage5b_learning_curve.png)
-*Figure 5.2 — Stage 5b (Blind Agent) training curve over 1,000,000 timesteps.*
-
-Both agents exhibit progressive improvement in episode return across the full training run. The four-phase curriculum — in which the maximum target distance increases from 3 m to 5 m, 5 m to 7 m, and 7 m to 10 m at timesteps 250K, 500K, and 750K respectively — produces visible step-change drops in return at each transition. These drops reflect the sudden increase in task difficulty as the agent encounters longer approach distances with greater integral windup potential. Following each transition, both agents recover within the subsequent phase and surpass their prior performance level, confirming that the curriculum structure successfully scaffolds learning.
-
-The Context-Aware Agent (Stage 5a) exhibits somewhat smoother recovery after curriculum transitions, particularly at the 500K and 750K boundaries. This is consistent with the agent's ability to directly observe the mass and friction scales in its observation: given the current dynamics, it can adjust gain selection more immediately when the task difficulty changes. The Blind Agent (Stage 5b) shows a slightly broader variance in return within each curriculum phase, reflecting the additional uncertainty it must resolve from trajectory history alone, though it achieves comparable final performance.
-
-Both agents converge to stable, positive return trajectories by the end of training, indicating that the curriculum and reward structure successfully guided both agents toward the target-reaching and holding behaviour required by the task. Training was conducted on a single random seed (seed 7); performance variance across different initialisations was not quantified, which is acknowledged as Limitation L1 in Section 6.2.
-
----
-
-## 5.2 Static Evaluation Results
-
-The static evaluation assesses all three agents across three fixed-physics scenarios: Standard (nominal operating conditions: mass = 10 kg, friction = 1.0), Heavy and Slippery (upper training boundary: mass = 20 kg, friction = 0.2), and Light and Grippy (lower training boundary: mass = 5 kg, friction = 2.0). Physics parameters remain constant throughout each episode. Ten evaluation seeds (70000–70009) are used per scenario.
-
-Because the policy is evaluated deterministically (no action noise) and physics parameters are fixed per scenario, all 10 seeds produce identical results for each agent-scenario combination. Table 5.1 reports the full results.
-
-**Table 5.1 — Static evaluation results (all agents, 10 seeds each)**
-
-| Agent | Scenario | Success rate | Settling time (s) | Overshoot (m) | IAE |
-|-------|----------|-------------|-------------------|---------------|-----|
-| Fixed PID | Standard | 100% | 1.116 | 0.000 | 2.653 |
-| Fixed PID | Heavy & Slippery | 100% | 1.136 | 0.000 | 2.789 |
-| Fixed PID | Light & Grippy | 100% | 1.254 | 0.000 | 2.939 |
-| Stage 5a (Context) | Standard | 100% | 1.254 | 0.000 | 2.682 |
-| Stage 5a (Context) | Heavy & Slippery | 100% | 1.278 | 0.000 | 2.816 |
-| Stage 5a (Context) | Light & Grippy | 100% | 1.390 | 0.000 | 2.967 |
-| Stage 5b (Blind) | Standard | 100% | 1.446 | 0.000 | 2.785 |
-| Stage 5b (Blind) | Heavy & Slippery | 100% | 1.476 | 0.000 | 2.917 |
-| Stage 5b (Blind) | Light & Grippy | 100% | 1.568 | 0.000 | 3.061 |
-
-Trajectory plots for each agent under static evaluation are shown in Figures 5.3, 5.4, and 5.5. Summary bar charts of settling time and IAE across scenarios are shown in Figures 5.6 and 5.7.
-
-![Baseline static trajectories](figures/trajectories/baseline_static_trajectories.png)
-*Figure 5.3 — Fixed PID position trajectories across three static scenarios.*
-
-![Stage 5a static trajectories](figures/trajectories/stage5a_static_trajectories.png)
-*Figure 5.4 — Stage 5a (Context-Aware Agent) position trajectories across three static scenarios.*
-
-![Stage 5b static trajectories](figures/trajectories/stage5b_static_trajectories.png)
-*Figure 5.5 — Stage 5b (Blind Agent) position trajectories across three static scenarios.*
-
-![Stage 5a eval summary](figures/eval/stage5a_eval_summary.png)
-*Figure 5.6 — Stage 5a evaluation summary: settling time and IAE by scenario.*
-
-![Stage 5b eval summary](figures/eval/stage5b_eval_summary.png)
-*Figure 5.7 — Stage 5b evaluation summary: settling time and IAE by scenario.*
-
-### Result 1 — All agents achieve 100% success with zero overshoot
-
-All three agents succeed on every episode across all mass and friction conditions tested. This result directly answers Research Question 1 (RQ1): a domain-randomised PPO agent trained with frame stacking can learn a reliable PID gain-scheduling policy across a 4:1 mass range (5 kg to 20 kg) and a 20:1 friction range (0.1 to 2.0). The zero overshoot result across all 90 evaluation episodes confirms that all agents stop precisely within the ±0.05 m hold band, satisfying the 25-consecutive-step criterion, rather than merely reaching the vicinity of the target.
-
-The uniformity of the success result across mass and friction extremes is notable. The Heavy and Slippery scenario (mass = 20 kg, friction = 0.2) places both demands at their upper training limits simultaneously. The Light and Grippy scenario (mass = 5 kg, friction = 2.0) represents the opposite extreme. Both RL agents generalise successfully across this range, confirming that the domain randomisation regime was sufficient to cover the evaluation distribution without overfitting to any single operating condition.
-
-### Result 2 — Context-aware RL settles faster than blind RL
-
-Stage 5a (Context-Aware Agent) consistently outperforms Stage 5b (Blind Agent) on settling time across all three static scenarios:
-
-| Scenario | Stage 5a settling (s) | Stage 5b settling (s) | Stage 5b slower by |
-|----------|-----------------------|-----------------------|-------------------|
-| Standard | 1.254 | 1.446 | +15.3% |
-| Heavy & Slippery | 1.278 | 1.476 | +15.5% |
-| Light & Grippy | 1.390 | 1.568 | +12.8% |
-| **Average** | | | **+14.5%** |
-
-This gap is consistent across all three scenarios, averaging 14.5%. The mechanism is straightforward: Stage 5a includes the current mass scale and friction scale in its observation vector, allowing the policy to directly condition gain selection on the operating conditions from the first timestep. Stage 5b lacks these observations; it must infer the dynamics from the shape of recent trajectory history within its 10-frame temporal window. The Blind Agent succeeds, but the additional inference cost — the steps required to resolve uncertainty about mass and friction from trajectory curvature and deceleration patterns — manifests as a systematic delay in entering and maintaining the hold band.
-
-This result directly answers RQ2: providing explicit physics context in the observation improves adaptation efficiency. The 14.5% settling time advantage of the Context-Aware Agent over the Blind Agent is a consistent, reproducible effect across all mass and friction conditions. It is not marginal noise — it corresponds to approximately 0.15–0.20 s of additional settling time, which represents roughly 7–10 additional RL timesteps (at 50 Hz) that the Blind Agent requires to commit to the hold strategy.
-
-The IAE ordering reflects the same dynamics. Integrated absolute error is necessarily higher for slower-settling agents, since more error accumulates during the additional settling time. Stage 5a achieves IAE values within 1–2% of Fixed PID, while Stage 5b shows a 4–5% higher IAE:
-
-| Scenario | Fixed PID IAE | Stage 5a IAE | Stage 5b IAE |
-|----------|--------------|-------------|-------------|
-| Standard | 2.653 | 2.682 (+1.1%) | 2.785 (+5.0%) |
-| Heavy & Slippery | 2.789 | 2.816 (+1.0%) | 2.917 (+4.6%) |
-| Light & Grippy | 2.939 | 2.967 (+1.0%) | 3.061 (+4.2%) |
-
-### Result 3 — Fixed PID achieves the shortest settling times
-
-The Fixed PID baseline achieves the fastest settling in all scenarios: 10–13% faster than Stage 5a, and 25–30% faster than Stage 5b.
-
-| Scenario | Fixed PID (s) | Stage 5a (s) | Stage 5b (s) |
-|----------|--------------|-------------|-------------|
-| Standard | **1.116** | 1.254 (+12.3%) | 1.446 (+29.5%) |
-| Heavy & Slippery | **1.136** | 1.278 (+12.5%) | 1.476 (+29.9%) |
-| Light & Grippy | **1.254** | 1.390 (+10.9%) | 1.568 (+25.0%) |
-
-At face value, this would suggest that a non-adaptive, pre-tuned fixed-gain controller outperforms both learned adaptive agents. **This interpretation is not supported by the full experimental picture.** An engineering mechanism in the simulation environment — the `brake_integral_reset`, which zeros the PID integrator upon entry to the braking zone — is active for all agents including the Fixed PID baseline. This mechanism resolves the integral windup problem that would otherwise cause Fixed PID to fail catastrophically. Section 5.4 demonstrates experimentally that without this mechanism, Fixed PID achieves 0% success with overshoot of approximately 10 m. The speed advantage of Fixed PID in Table 5.1 is therefore an artefact of an equalising aid, not a genuine demonstration of non-adaptive superiority under unknown dynamics.
-
-This result is presented here for completeness and to establish the numeric record. Its interpretation is deferred to Section 5.4, which provides the analysis needed to correctly contextualise the comparison.
-
----
-
-## 5.3 Dynamic Evaluation Results
-
-The dynamic evaluation extends each scenario with mid-episode disturbances and adds two out-of-distribution (OOD) conditions not encountered during training. At a random step in [120, 220] (~1.2–2.2 s after episode start), mass is multiplied by a scale drawn uniformly from [0.9, 1.3] and friction by a scale from [0.5, 1.4]. Because the disturbance parameters are seed-dependent, settling times vary across the 10 evaluation seeds; results are reported as mean ± range.
-
-The two OOD conditions are:
-- **OOD Ultra Heavy (35 kg):** mass = 35 kg, friction = 1.0. Mass is 75% above the training ceiling of 20 kg.
-- **OOD Ultra Slippery:** mass = 20 kg, friction = 0.05. Friction is well below the training floor of 0.1.
-
-Results for Stage 5a and Stage 5b are shown in Tables 5.2 and 5.3. Trajectory plots are in Figures 5.8 and 5.9; evaluation summary plots in Figures 5.10 and 5.11.
-
-**Table 5.2 — Dynamic evaluation, Stage 5a (Context-Aware Agent), 10 seeds each**
-
-| Scenario | Success rate | Settling time mean ± range (s) | Overshoot |
-|----------|-------------|-------------------------------|-----------|
-| Standard | 100% | 1.47 ± 0.01 | 0 m |
-| Heavy & Slippery | 100% | 1.47 ± 0.01 | 0 m |
-| Light & Grippy | 100% | 1.49 ± 0.04 | 0 m |
-| OOD Ultra Heavy (35 kg) | 100% | 1.47 ± 0.03 | 0 m |
-| OOD Ultra Slippery | 100% | 1.47 ± 0.01 | 0 m |
-
-**Table 5.3 — Dynamic evaluation, Stage 5b (Blind Agent), 10 seeds each**
-
-| Scenario | Success rate | Settling time mean ± range (s) | Overshoot |
-|----------|-------------|-------------------------------|-----------|
-| Standard | 100% | 1.45 ± 0.01 | 0 m |
-| Heavy & Slippery | 100% | 1.48 ± 0.01 | 0 m |
-| Light & Grippy | 100% | 1.54 ± 0.06 | 0 m |
-| OOD Ultra Heavy (35 kg) | 100% | 1.54 ± 0.02 | 0 m |
-| OOD Ultra Slippery | 100% | 1.48 ± 0.01 | 0 m |
-
-![Stage 5a dynamic trajectories](figures/trajectories/stage5a_dynamic_trajectories.png)
-*Figure 5.8 — Stage 5a position trajectories under dynamic evaluation (with mid-episode disturbances).*
-
-![Stage 5b dynamic trajectories](figures/trajectories/stage5b_dynamic_trajectories.png)
-*Figure 5.9 — Stage 5b position trajectories under dynamic evaluation.*
-
-![Stage 5a dynamic eval summary](figures/eval/stage5a_dynamic_eval_summary.png)
-*Figure 5.10 — Stage 5a dynamic evaluation summary across all five scenarios.*
-
-![Stage 5b dynamic eval summary](figures/eval/stage5b_dynamic_eval_summary.png)
-*Figure 5.11 — Stage 5b dynamic evaluation summary across all five scenarios.*
-
-### Result 4 — Both RL agents generalise to out-of-distribution conditions
-
-Both Stage 5a and Stage 5b achieve 100% success with zero overshoot in the OOD Ultra Heavy scenario (35 kg), with settling times comparable to in-distribution performance (Stage 5a: 1.47 ± 0.03 s; Stage 5b: 1.54 ± 0.02 s). The training mass ceiling was 20 kg; the OOD condition exceeds this by 75%. Despite never encountering a 35 kg vehicle during training, both agents apply gain schedules that reliably drive the heavier vehicle to within ±0.05 m of the target and hold it there for 25 consecutive steps.
-
-This result has a practical implication: the policy has generalised beyond interpolation of the training distribution to extrapolation into an unseen mass regime. The domain randomisation regime — sampling mass from [5, 20] kg at each episode — appears to have trained a policy that captures the structural relationship between mass and the required gain adjustments, rather than merely memorising responses for specific mass values. A heavier vehicle requires more aggressive braking (higher Kd) and less integral accumulation (lower Ki) to avoid overshoot; both agents appear to have learned this relationship well enough to extend it beyond the training range.
-
-The OOD Ultra Slippery scenario (friction = 0.05) likewise presents no difficulty, with settling times indistinguishable from in-distribution results. As noted in Section 3.3, rolling-contact dynamics in this simulation model do not produce the translational resistance changes that friction coefficient variation would produce in a real vehicle. The "Ultra Slippery" condition therefore represents a change in friction parameter that has limited effect on the control problem as modelled. Mass remains the dominant source of dynamic uncertainty in this simulation, and it is mass generalisation that the OOD results principally demonstrate. This limitation is discussed in Section 6.2 (Limitation L4).
-
-### Result 5 — Mid-episode disturbances did not measurably disrupt settling performance
-
-Comparing dynamic settling times to their static counterparts reveals a notable pattern: the disturbances have minimal measurable effect.
-
-| Agent | Scenario | Static settling (s) | Dynamic mean settling (s) | Difference |
-|-------|----------|--------------------|--------------------------| -----------|
-| Stage 5a | Standard | 1.254 | 1.47 | +0.22 |
-| Stage 5a | Heavy & Slippery | 1.278 | 1.47 | +0.19 |
-| Stage 5b | Standard | 1.446 | 1.45 | +0.00 |
-| Stage 5b | Heavy & Slippery | 1.476 | 1.48 | +0.00 |
-
-The small differences observed are attributable to seed-to-seed variation in evaluation conditions (episode-level mass and friction samples vary per seed in dynamic evaluation), not to disturbance disruption. The disturbance itself — which fires at steps 120–220, corresponding to 1.2–2.2 s into the episode — occurs after most episodes have already achieved the hold criterion.
-
-Stage 5a typically enters the hold band within 1.25–1.39 s (from the static evaluation); Stage 5b within 1.45–1.57 s. In a significant fraction of episodes — particularly for Stage 5a — the vehicle has already settled before the disturbance fires. When the vehicle is already within ±0.05 m and holding, a moderate change in mass (×0.9–1.3) or friction (×0.5–1.4) does not dislodge it from the hold zone within the remaining episode steps. The success metric therefore captures robustness to disturbances that predominantly fire post-settling, not robustness to mid-approach physics changes.
-
-This represents a design limitation in the dynamic evaluation: the disturbance window does not overlap with the active approach phase for agents that settle quickly. A disturbance firing at steps 30–80 — during the vehicle's active deceleration — would genuinely test whether the agents can adapt their gain schedules in response to a sudden physics change during the most control-critical phase of the episode. As designed, the dynamic evaluation primarily confirms robustness of the initial approach, not mid-approach adaptability. This is flagged as Limitation L3 and discussed in Section 6.2.
-
----
-
-## 5.4 Confound Analysis — The Brake Integral Reset
-
-This section identifies and analyses the most important methodological finding of this thesis: the `brake_integral_reset` mechanism introduces a confound that fundamentally alters the interpretation of the Fixed PID speed advantage reported in Section 5.2. Understanding this mechanism is necessary before drawing any conclusions about the relative performance of adaptive and non-adaptive control in this experiment.
-
-### 5.4.1 The mechanism and its effect
-
-The simulation environment includes a `brake_integral_reset` subroutine: at each timestep, if the vehicle's distance to target satisfies |error| < 2.0 m (the braking zone entry), the PID integrator is set to zero. This mechanism was introduced during iterative environment development to address integral windup — a well-known failure mode in fixed-gain PID control where the integral term, accumulated during a long approach phase, prevents effective braking in the final deceleration phase.
-
-Critically, this mechanism is active for **all agents** during both training and evaluation, including the Fixed PID Classical Baseline. It is not a feature of the RL agents' learned strategy; it is an environmental engineering decision applied uniformly across all conditions.
-
-The consequence is asymmetric: the mechanism most benefits the agent for which integral windup is the hardest problem to solve. For the RL agents, training under domain randomisation with overshoot penalties and deceleration bonuses creates pressure to learn gain schedules that suppress Ki accumulation during the approach and raise Kd near the braking zone — a behavioural approximation to windup prevention. The agents learn to work around the windup problem through gain scheduling. For the Fixed PID baseline, no such learning is possible: gains are fixed at Kp = 1.8, Ki = 0.7, Kd = 0.5 throughout the episode, and the mechanism is the only mechanism available for preventing catastrophic overshoot.
-
-### 5.4.2 Why integral windup causes fixed PID failure
-
-During an approach from 0 m to an 8 m target (the configuration used in the validation experiment below), the vehicle spends approximately 2.0–2.5 s in the non-braking zone (|error| ≥ 2 m). The PID integrator accumulates continuously during this phase:
-
-```
-i_term(T) = Ki × ∫₀ᵀ e(t) dt ≈ Ki × e_avg × T
-```
-
-At Ki = 0.7, with average error ≈ 2.5 m during a 2.5 s approach phase:
-
-```
-i_term ≈ 0.7 × 2.5 × 2.5 ≈ 4.4
-```
-
-At the entry to the braking zone (|error| ≈ 2.0 m), effective deceleration requires the derivative term to overcome the integral term:
-
-```
-Kd × |vel| > i_term
-```
-
-Rearranging: Kd > i_term / |vel|. At a typical approach velocity of |vel| = 0.5 m/s and i_term ≈ 4.4:
-
-```
-Kd > 4.4 / 0.5 = 8.8
-```
-
-The Fixed PID has Kd = 0.5 — more than seventeen times smaller than the minimum required for effective braking. Without the integral reset, the derivative control authority is completely overwhelmed by the integrator state, and the vehicle cannot decelerate effectively at the braking zone entry. It overshoots the target and never recovers within the episode time limit.
-
-With the integral reset active, this calculation is irrelevant: the moment the vehicle crosses into the braking zone, i_term is set to zero. The effective i_term at the braking point is not 4.4 but 0. The fixed gains then operate in a regime where the derivative term (Kd = 0.5, vel = 0.5 m/s → derivative force ∝ 0.25) can provide meaningful deceleration authority, and the pre-tuned gains perform well.
-
-### 5.4.3 Validation experiment
-
-To confirm that the integral reset is responsible for Fixed PID's baseline performance, the baseline was evaluated with `brake_integral_reset` disabled. To allow sufficient approach distance for windup to accumulate, an extended 8 m target was used rather than the standard 5 m evaluation target. Results are shown in Table 5.4. The corresponding trajectory plot is in Figure 5.12.
-
-**Table 5.4 — Fixed PID evaluated with `brake_integral_reset` disabled (8 m target, 10 seeds)**
-
-| Scenario | Success rate | Overshoot (m) | Final abs. error (m) |
-|----------|-------------|---------------|----------------------|
-| Standard | 0% | 9.92 | 2.995 |
-| Heavy & Slippery | 0% | 10.00 | 10.003 |
-| Light & Grippy | 0% | 9.99 | 2.968 |
-
-![Baseline no-reset trajectories](figures/trajectories/baseline_no_reset_trajectories.png)
-*Figure 5.12 — Fixed PID trajectories with `brake_integral_reset` disabled (8 m target). All scenarios show massive overshoot and failure to recover.*
-
-Without the integral reset, Fixed PID fails completely across all three mass-friction scenarios. Overshoot of approximately 10 m — equivalent to the full target distance — confirms that the vehicle passes through the target zone at high velocity and cannot recover within the episode time limit. The Heavy and Slippery scenario is the most severe, with a final error of 10.003 m indicating the vehicle ended the episode at the far boundary of its travel range and never returned toward the target. The mechanism predicted by the integral windup analysis is confirmed: i_term accumulated during the approach exceeds the braking authority of Kd = 0.5 by more than an order of magnitude, and the vehicle cannot decelerate.
-
-### 5.4.4 Implications for the Fixed PID speed advantage
-
-This finding reframes the settling time comparison in Table 5.1. The Fixed PID's faster settling (1.116–1.254 s vs Stage 5a's 1.254–1.390 s and Stage 5b's 1.446–1.568 s) is not evidence that non-adaptive, pre-tuned gains outperform learned adaptive control under unknown dynamics. It is evidence that pre-tuned fixed gains, when freed from the problem they are most vulnerable to by an engineering aid, can exploit their precisely calibrated values to settle slightly faster than a learned policy that must operate conservatively to avoid windup accumulation without knowing when or whether the reset will fire.
-
-The RL agents are, in effect, solving a harder version of the problem: they learn gain schedules that hedge against integral windup (reducing Ki, raising Kd) because their training does not guarantee the integral reset will fire at the right moment in every episode. This conservative strategy imposes a settling time cost relative to a baseline that has the windup problem removed. In a deployment scenario without the integral reset — which the validation experiment confirms is the harder, more realistic setting — Fixed PID fails while the RL agents, trained to handle windup through gain scheduling, would be expected to retain their adaptive advantage.
-
-It should be noted that an attempt was made to retrain both RL agents in an environment with `brake_integral_reset` disabled. These training runs did not converge to a successful policy within 1.5–3 million timesteps. The hypothesised required strategy — suppressing Ki aggressively during the approach phase to prevent windup, then committing to a high-Kd braking strategy near the target — involves credit assignment across 500–1000 timesteps, a horizon that on-policy PPO with an MLP policy has limited capacity to bridge. A recurrent policy architecture (LSTM or GRU) that can maintain an explicit representation of the integral state across the full approach would be better suited to learning this strategy. This is identified as a priority for future work in Section 7.2.
-
-### 5.4.5 Honest framing
-
-The `brake_integral_reset` confound is presented here as a research finding rather than a methodological failure. Identifying a hidden simulation aid — one that appeared innocuous during development but substantially altered the competitive landscape between agent types — is a contribution to the rigour of this line of research. Analogous anti-windup mechanisms (integrator clamping, conditional integration, back-calculation) are standard practice in real PID implementations. Their presence in simulation must be accounted for when benchmarking adaptive methods against fixed-gain baselines, because they disproportionately benefit the non-adaptive controller whose only failure mode is windup accumulation.
-
-> "An implicit assumption embedded in the environment design was identified during analysis. The `brake_integral_reset` mechanism effectively removes integral windup at the moment when braking authority is most critical. While this is a common engineering practice in real PID implementations, its presence in the simulation equalises all agents and obscures the adaptive advantage that RL should theoretically provide. Disabling this mechanism reveals that fixed PID fails completely, confirming that the aid — not the fixed gains — was responsible for the baseline's strong performance in the standard evaluation. This finding highlights the importance of carefully auditing simulation aids when benchmarking adaptive control methods against fixed-gain baselines."
-
-The comparison between Fixed PID and the RL agents in Sections 5.2 and 5.3 should be read as a characterisation of all agents' behaviour under a shared simulation convention, not as evidence that non-adaptive control is preferable. The correct comparison, RQ2, is addressed by Sections 5.2 and 5.3 directly: Stage 5a settles 14.5% faster than Stage 5b, a result that is unaffected by the integral reset confound since both RL agents are subject to the same aid.
-
----
-
-## 5.5 Summary of Key Results
-
-The results of this chapter address both research questions and identify one major experimental confound.
-
-**RQ1 — Feasibility:** Both Stage 5a and Stage 5b achieve 100% success with zero overshoot across all static and dynamic evaluation scenarios, including out-of-distribution conditions 75% beyond the training mass ceiling. Domain-randomised PPO with frame stacking produces a viable gain-scheduling policy that generalises reliably across a wide range of unknown dynamics.
-
-**RQ2 — Context benefit:** The Context-Aware Agent (Stage 5a) settles an average of 14.5% faster than the Blind Agent (Stage 5b) across all static scenarios. This advantage is consistent across mass and friction conditions, confirming that physics context in the observation is beneficial for adaptation speed, even though the Blind Agent succeeds without it.
-
-**Confound:** The `brake_integral_reset` mechanism is the primary driver of Fixed PID's speed advantage in the standard evaluation. Disabling it eliminates that advantage entirely (Fixed PID: 0% success, ~10 m overshoot). The RL-vs-Fixed-PID comparison in the standard evaluation does not constitute a fair test of adaptive versus non-adaptive control under unknown dynamics.
+## 5.1 Training
+
+Both learned agents train stably to convergence over 1M steps on the
+`thesis_v6_hipmdp` protocol across all five seeds. Episode return rises
+steeply during the first curriculum phase (targets 1–3 m), where the agent
+learns the basic approach-and-hold behaviour on short, forgiving targets, then
+steps down and recovers at each subsequent phase boundary (250k, 500k, 750k
+steps) as the target range expands to 1–5, 1–7, and 1–10 m. The dips are the
+signature of curriculum transfer: a policy tuned for short approaches must
+re-learn the braking timing for longer ones, where more integral accumulates
+and the actuator-limited cruise is longer. By the end of phase four the return
+has re-stabilized, and — more importantly for a control task — the *success
+rate* on held-out evaluation targets has saturated at 100%.
+
+Three observations about the training dynamics are worth recording. First,
+across the five seeds the learning curves are qualitatively identical, with the
+phase-boundary dips occurring at the same steps and the final return spread
+narrow; the policy is not unusually sensitive to initialization. Second, the
+MLP agents complete a 1M-step run in ~15 min on CPU, whereas the recurrent
+(GRU) agent takes ~75 min — a 5× cost from backpropagation through time over
+the rollout, which is the practical price of recurrence even when it helps
+(§5.4.2). Third, and as a methodological caution, the GRU's per-episode *return*
+remains deeply negative throughout training (the long episodes accumulate many
+small per-step distance and velocity penalties before the terminal hold bonus
+is collected), and a naïve reading of the return curve alone would suggest it
+had failed to learn. Its *behaviour*, however, converges to reliable control —
+100% success, low settling. This dissociation between shaped return and task
+success is the reason this thesis reports success rate and settling time, not
+episode return, as the primary metrics, and it is the same trap that an earlier
+recurrent run under a different reward (the Stage-4 governor/cliff protocol)
+fell into when its exploding value loss was read as a fundamental failure of
+recurrence rather than an artifact of that protocol's hard-termination
+landscape (§5.4.2).
+
+![Training return and value loss vs PPO update for the context and blind agents (seed 7); dotted lines mark the four curriculum-phase boundaries.](../figures/fig5_training_curves.png)
+
+*Figure 5.0 — Training dynamics over 1M steps, with curriculum-phase boundaries (dotted). Return rises within each phase and dips at boundaries as the target range expands.*
+
+## 5.2 RQ1 — Feasibility
+
+Both the Context-Aware Agent and the Blind Agent achieve **100% hold success on
+all eight static scenarios across all five seeds, with zero overshoot** — and
+the same under the dynamic (mid-episode disturbance) protocol. The hold
+criterion is strict (within ±0.05 m for 25 consecutive control steps, i.e.
+0.5 s of sustained accuracy), so "success" here is not a loose fly-by but a
+held, settled stop; combined with zero overshoot across every scenario and
+seed, this says the learned policies do not merely reach the target but arrest
+cleanly without the windup transient that defeats a naive PID (§5.6). The
+across-seed consistency (no failures in $5\times 8\times 10 = 400$ static
+episodes per agent) further indicates the result is a property of the training
+protocol, not a lucky initialization.
+
+The generalization is the more pointed claim. Success is retained on every
+**out-of-distribution** scenario: OOD Ultra Heavy (35 kg, 1.75× the training
+ceiling of 20 kg), OOD Weak Motor (actuator 0.45, below the training floor of
+0.6 — the single hardest in-isolation condition), and OOD Heavy Weak (an
+above-range mass *combined* with a below-range actuator). That failures do not
+*compound* off-distribution — the combined-OOD corner is still solved — is
+evidence the policies learned something closer to a continuous response over
+the parameter space than a lookup memorized at the training points. The blind
+agent achieving this without ever observing the parameters is the first hint of
+the implicit-identification mechanism that RQ4 makes explicit.
+
+Two honest qualifications attach even to this clean RQ1 result. First, the car
+is *self-stabilizing*: it does not run away if the gains are imperfect, only
+settles slowly, so 100% success is a relatively low bar that the saturating
+metric cannot resolve further — which is precisely why settling time (RQ2) and
+the unstable pendulum (§5.10) are needed to find daylight between controllers.
+Second, "out-of-distribution" here means outside the *training* ranges but still
+within the regime where the actuator can physically complete the task; the
+shock probe (§5.8) and the pendulum's extreme corner (§5.10) locate the genuine
+edge, where no controller — learned or classical — succeeds. With those
+qualifications, RQ1 is settled affirmatively: the interesting questions are no
+longer *whether* the agents control the plant but *how well*, *at what cost*,
+and *by what mechanism* — RQ2–RQ4.
+
+## 5.3 RQ2 — Privileged Context vs Inference
+
+### 5.3.1 Scenario suite
+
+Table 5.1 gives settling time (mean over five seeds, protocol v2) for the
+teacher and student. Both succeed everywhere; the teacher is faster, by a
+**regime-dependent** margin.
+
+| Scenario | Context (s) | Blind (s) | Blind penalty |
+|----------|-------------|-----------|---------------|
+| Light Strong Motor | 10.90 ± 0.68 | 12.29 ± 0.52 | +12.8% |
+| Light and Grippy | 14.14 ± 0.94 | 15.77 ± 0.85 | +11.5% |
+| Standard | 13.72 ± 0.68 | 14.57 ± 0.68 | +6.2% |
+| Heavy and Slippery | 14.13 ± 0.73 | 14.84 ± 0.69 | +5.0% |
+| OOD Ultra Heavy | 14.38 ± 0.73 | 15.29 ± 0.68 | +6.3% |
+| Heavy Weak Motor | 18.61 ± 1.04 | 19.16 ± 0.99 | +3.0% |
+| OOD Heavy Weak | 23.35 ± 1.25 | 23.79 ± 1.19 | +1.9% |
+| OOD Weak Motor | 26.58 ± 1.40 | 26.91 ± 1.37 | +1.2% |
+
+*Table 5.1 — Settling time, teacher vs student (5 seeds, protocol v2).*
+
+![Context vs blind settling by scenario (5 seeds, mean ± sd). The teacher leads on every scenario, by a margin that shrinks from the fast scenarios (left) to the actuator-limited ones (right).](../figures/fig5_rq2_settling.png)
+
+*Figure 5.1 — RQ2: context-aware vs blind settling time across the eight scenarios.*
+
+The advantage is **largest when the plant is fast** (Light Strong Motor,
++12.8%) and **vanishes when the plant is actuator-limited** (OOD Weak Motor,
++1.2%). The interpretation is that when settling is control-limited, knowing
+the dynamics lets the teacher commit to good gains immediately, whereas the
+student spends part of the episode inferring them; but when settling is
+travel-time-limited (weak actuator, long cruise), neither knowing nor inferring
+the dynamics can speed up a manoeuvre the actuator itself bottlenecks, so the
+gap closes. With genuine per-seed variance (sd 0.5–1.4 s) the ordering is
+consistent across seeds; on the fast scenarios the seed-level Welch test
+separates the two (small-to-medium Cliff's δ), while on the actuator-limited
+scenarios the difference is within noise.
+
+**Statistical treatment.** Each cell of Table 5.1 aggregates 50 episodes (10
+per seed × 5 seeds) under protocol v2; the reported ± is the standard deviation
+of the five per-seed means, and the headline penalty is the ratio of the
+seed-level means. Significance is assessed at the seed level — the unit at
+which the policies are independent — with Welch's t-test (unequal variances,
+$n_s=5$ per group) cross-checked by Mann–Whitney U where the settling
+distribution is right-skewed; effect size is Cliff's δ, and the family of eight
+scenario comparisons is corrected with Holm–Bonferroni. On the fast scenarios
+(Light Strong Motor, Light and Grippy) the teacher–student difference survives
+correction with a small-to-medium effect ($|\delta|\approx0.3$–$0.5$); on the
+actuator-limited scenarios (OOD Weak Motor, OOD Heavy Weak) the difference is
+within seed noise ($|\delta|<0.15$, adjusted $p>0.1$) and no advantage is
+claimed there. With only five seeds the seed-level bootstrap confidence
+intervals are wide, and the chapter is careful to read the result as a
+*trend* — context helps, conditionally — rather than a precise effect size.
+
+This result **replaces** the original draft's "+14.5% on every scenario", which
+was an artifact: the v1 static evaluation never wrote the sampled physics to
+the context observation, so the teacher always saw a constant $(1,1)$ context —
+roughly 11× outside its training context distribution (the training context,
+normalized by the XML-nominal mass of ≈0.43 kg, spans mass-scale ≈ 11.6–46.5).
+Re-evaluating the old teacher with the *true* context applied (§5.7) makes its
+advantage collapse to near the blind agent's level, while feeding it the broken
+$(1,1)$ context reproduces the original inflated numbers — a clean
+demonstration that the "advantage" was an out-of-distribution observation
+artifact, not a benefit of context. That the dynamic evaluation (which always
+pushed context correctly through the randomization wrapper) was *not* affected
+is what localized the bug to the static-evaluation path.
+
+### 5.3.2 Actuator sweep
+
+Sweeping actuator strength at nominal mass (Figure 5.x) makes the mechanism
+explicit. The figure plots settling time against $\kappa$ over $[0.5,2.0]$ for
+fixed PID, the blind student, and the context teacher; a shaded band marks the
+training range $[0.6,1.4]$ so the outer points are genuinely out-of-
+distribution. Three features stand out. First, all curves are **monotone
+decreasing and convex** — settling falls steeply as the motor strengthens
+(from ~22 s at $\kappa=0.5$ to ~6 s for fixed PID at $\kappa=2.0$) and flattens
+once the actuator is no longer the bottleneck, the direct signature of the
+$\approx d/v_{\max}$, $v_{\max}\propto\kappa$ relation derived in §3.2. Second,
+the teacher tracks below the student throughout, by ~1.4 s at $\kappa=2.0$ (8.8
+vs 10.1 s) and narrowing toward the weak-motor end — the advantage scales with
+the *settling headroom* the actuator allows, which is the same regime-dependent
+story as Table 5.1 read along a continuous axis rather than across discrete
+scenarios. Third, **success stays at 100% across the entire sweep, including
+both OOD ends** ($\kappa=0.5$, below the training floor, and $\kappa=2.0$,
+above the ceiling): the learned policies extrapolate on this axis rather than
+breaking at the training boundary, consistent with the OOD scenarios in
+Table 5.1. The fixed-PID curve is the reference for "how much of the settling is
+simply travel time" — the gap between it and the learned curves is the cost the
+learned conservatism (higher $K_d$, hedged braking) pays for robustness, and it
+is largest exactly where fast settling is achievable.
+
+![Actuator sweep: settling, overshoot, and success vs actuator strength for fixed PID, blind, and context controllers; green band is the training range.](../figures/fig5_actuator_sweep.png)
+
+*Figure 5.2 — Actuator-strength sweep. Settling is monotone-convex (∝ 1/κ), the teacher leads throughout with shrinking margin, and success holds at 100% across both out-of-distribution ends.*
+
+## 5.4 RQ3 — How Much Memory Does Inference Need?
+
+### 5.4.1 Frame-stack depth is nearly irrelevant
+
+Blind agents trained with stack depth $k\in\{1,3,5,10,20\}$ are
+indistinguishable (Table 5.2): 100% success at every $k$, and settling within
+~0.5 s across the whole range on every scenario, with no monotonic trend.
+
+| $k$ | 1 | 3 | 5 | 10 | 20 |
+|-----|----|----|----|----|----|
+| Standard settling (s) | 14.73 | 14.25 | 14.39 | 14.71 | 14.35 |
+| Heavy Weak Motor (s) | 19.37 | 18.84 | 19.04 | 19.28 | 18.97 |
+
+*Table 5.2 — Stack-depth ablation (blind, seed 7).*
+
+Even $k=1$ — a near-memoryless policy — succeeds with settling matching $k=20$.
+The explanation follows directly from the identifiability analysis of §2.4.5.
+The most discriminative parameter, actuator strength, is identifiable from the
+*cruise velocity*, which is a single-frame observation: a memoryless policy
+reading the current velocity already has the dominant information. Mass requires
+the acceleration *transient* — strictly a multi-step signal — but its effect on
+this self-stabilizing plant is small (it shifts settling by a few percent,
+§5.7), so failing to capture it costs little. And the previous gain action is
+part of the observation, supplying a one-step feedback channel that substitutes
+for some of what a longer history would provide. The flat ablation is therefore
+not a surprise but a *prediction* of the identifiability structure: when the
+load-bearing parameter is instantaneously observable and the memory-requiring
+parameter is dynamically weak, stacking depth should not matter — and it does
+not. A plant whose dominant parameter were revealed only by an extended
+manoeuvre (§7.2) would be expected to show the opposite, and is the natural test
+of this explanation. (Caveat: because the previous action is in the observation,
+$k=1$ is not strictly Markov-blind; a fully memoryless variant would drop it,
+and is the clean control this prediction invites.)
+
+![Stack-depth ablation: settling vs frame-stack depth k for three scenarios; the curves are flat, with k=1 matching k=20.](../figures/fig5_stack_ablation.png)
+
+*Figure 5.3 — RQ3 stack-depth ablation. Settling is flat across k ∈ {1,3,5,10,20} on every scenario; temporal depth is not the load-bearing mechanism.*
+
+### 5.4.2 Recurrence is the fastest variant
+
+A GRU recurrent blind agent (128 hidden units, stack 1) reaches 100% success
+with **the lowest settling of any blind agent — ~11.3 s on Standard, against
+14.6 s for frame-stacking and 13.7 s for the context MLP** (Table 5.3, two
+seeds). That recurrence helps while stack depth does not suggests the GRU's
+learned state compression is more useful than raw stacked frames; however, the
+GRU has more capacity (128 hidden vs 2×64), so the comparison conflates
+recurrence with width and the result is stated with that caveat. This also
+*overturns* an earlier expectation: a recurrent agent under a different protocol
+(speed governor + hard-overshoot termination) had diverged with exploding value
+loss; under the present reward it trains without difficulty, locating that
+earlier failure in the protocol rather than in recurrence per se.
+
+| Variant | Standard settling (s) | Success |
+|---------|----------------------|---------|
+| Frame-stack (k=10) | 14.6 | 100% |
+| GRU (recurrent) | 11.3 | 100% |
+| Context MLP (reference) | 13.7 | 100% |
+
+*Table 5.3 — Memory mechanism comparison (blind).*
+
+## 5.5 RQ4 — What the Blind Agent Encodes
+
+**Probe methodology.** A controller that merely *tolerates* unknown dynamics
+(a single robust policy) and one that *identifies* them (conditioning on an
+inferred parameter) can be behaviourally similar yet are mechanistically
+distinct. To separate them, the blind agent is rolled out over 80 episodes with
+the hidden parameters sampled per episode, and at every control step two feature
+vectors are recorded: the flattened stacked observation (the policy *input*) and
+the activations of the policy network's penultimate layer (what the policy
+*encodes*). A linear ridge probe is then trained to regress each true hidden
+parameter from each feature vector. Crucially, cross-validation uses
+**GroupKFold grouped by episode**, so no step from a training episode appears in
+the corresponding test fold — a parameter is constant within an episode, and
+without episode-grouping a probe could "decode" it by memorizing episode
+identity rather than reading dynamics. The probe is deliberately *linear*: a
+high $R^2$ then means the parameter is encoded in a directly readable
+(linearly separable) form, not merely recoverable by an arbitrarily powerful
+decoder. Scores are reported as out-of-fold $R^2$ within episode-time buckets,
+giving decodability as a function of phase.
+
+To test whether the blind policy *represents* the hidden parameters, these
+probes were scored by $R^2$ as a function of episode phase. The result is a
+clean **double dissociation** matching the plant physics (Figure 5.x):
+
+| Parameter | Decodable phase | Peak $R^2$ | In cruise |
+|-----------|-----------------|------------|-----------|
+| Mass | acceleration (steps 5–40) | 0.37–0.39 | ~0.05 |
+| Actuator strength | cruise (steps 20–160) | 0.58–0.65 | sustained |
+| Friction | — | ~0.28 (spurious) | — |
+
+Mass is decodable precisely when it influences the trajectory — during
+acceleration, through $\ddot x = F/m$ — and fades once cruising. Actuator
+strength is the mirror image: not decodable early, strongly decodable in cruise,
+because it sets the terminal speed $v_{\max}\propto\kappa$. Friction is at best
+weakly and likely spuriously decodable, consistent with its dynamical inertness
+under rolling contact. The blind agent thus encodes exactly the parameters its
+closed-loop trajectory excites, in the phase where each becomes physically
+observable — direct evidence that the agent performs implicit system
+identification rather than merely executing a robust fixed policy.
+
+![Probe out-of-fold R² for mass, actuator, and friction vs episode time, decoded from the blind policy's representation.](../figures/fig5_probe_r2.png)
+
+*Figure 5.4 — RQ4 double dissociation. Mass is decodable during acceleration (early, then decays); actuator strength during cruise (rises and sustains); friction never above chance.*
+
+## 5.6 Classical Baselines and the Integral-Reset Confound
+
+### 5.6.1 The aid equalizes naive PID
+
+With the `brake_integral_reset` aid active, Fixed PID achieves 100% success and
+the *fastest* settling of any controller (11.2–12.5 s, Table 5.4) — faster than
+both learned agents. But the aid removes integral windup using task knowledge
+(distance to target), the hardest part of the control problem (§2.2). Its
+presence makes the headline "fixed PID is fastest" a statement about the aid,
+not about non-adaptive control.
+
+### 5.6.2 Without the aid: the fair baseline
+
+Disabling the aid (no-reset environment, target 8 m) separates the controllers:
+
+| Controller (no-reset) | Success | Settling (s) | Overshoot (m) |
+|-----------------------|---------|--------------|---------------|
+| Fixed PID (naive) | 2/3 scenarios | 74–93 | ~7 |
+| Anti-Windup PID (back-calc) | **100%** | ~21 | 0.13 |
+| Context / Blind (zero-shot) | 100% in-dist | 39–61 | ~4.2 |
+
+*Table 5.4 — No-reset environment (no task-aware aid).*
+
+Naive PID does **not** "fail completely" (the original draft's "0% / never
+recovers" was a measurement against the wrong target distance): it suffers large
+windup transients but recovers on two of three scenarios at 74–93 s. The
+textbook **anti-windup PID solves the no-reset task outright** — 100% success,
+~21 s, negligible overshoot — using two lines of standard engineering. The
+learned agents, evaluated zero-shot in this environment (trained with the aid),
+hold 100% in-distribution but with large ~4.2 m overshoot transients, having
+relied on the aid during training. The lesson is decisive for framing: **"PID
+fails, therefore RL" is untenable** — the fair classical baseline closes the
+windup gap — so the learned controllers' value must rest on adaptation across
+varying dynamics, not on windup handling.
+
+The mechanism behind the three rows of Table 5.4 is exactly the windup analysis
+of §2.2, and tracing it makes the comparison concrete. The naive controller
+accumulates an integral of order $K_i\bar e T \approx 17$ over the 8 m approach;
+when it reaches the target the integral term alone saturates the actuator and
+the derivative term ($K_d|\dot e|\approx 0.25$) cannot arrest the vehicle, so it
+overshoots by ~7 m, the error reverses, the integrator unwinds, and the loop
+finally settles tens of seconds later — when it settles at all (the Heavy &
+Slippery case drives backward past the origin into the runaway-termination
+region and is scored a failure). Back-calculation removes this by bleeding the
+integrator toward the saturation-consistent value the instant the command
+clips: the integral never reaches a value the derivative term cannot counter,
+so the controller decelerates cleanly with 0.13 m overshoot. The learned agents
+sit between the two — they were trained with the task-aware reset always
+firing, so they never had to learn windup-free gain scheduling; evaluated
+without it they still reach and hold the target (their learned conservatism
+helps) but with multi-metre transients that a purpose-built anti-windup loop
+avoids. The honest reading is that windup is a *solved* problem for which a
+learned controller is unnecessary, and the no-reset environment is therefore
+the wrong place to look for an RL advantage — the right place is varying,
+unidentified, or unstable dynamics (§5.10), not a fixed-parameter windup task.
+
+![No-reset environment: settling by scenario for none / clamp / back-calculation anti-windup.](../figures/fig5_antiwindup.png)
+
+*Figure 5.5 — Anti-windup in the no-reset environment. Back-calculation and conditional integration (clamp) recover clean settling where the un-protected loop (none) suffers large windup transients.*
+
+### 5.6.3 MRAC fails fairly
+
+MRAC with a *feasible* reference model ($\tau_m\in\{10,15\}$ s, achievable at
+$v_{\max}=0.5$ m/s), corrected control period, and a normalized MIT rule still
+achieves **0% success** across all configurations (overshoot 2.4–4.6 m,
+timeout), and underperforms even naive fixed PID. The failure is instructive.
+The MIT rule adapts each gain along $\dot K \propto -\,e_m\,\partial y/\partial
+K$, which presumes the sign of the plant sensitivity $\partial y/\partial K$ is
+known and stable so the update consistently reduces the model-following error
+$e_m$. On this plant neither holds: the actuator saturates for most of the
+approach, so over a wide operating band $\partial y/\partial K \approx 0$ (more
+gain produces no more torque) and the gradient signal vanishes exactly when the
+controller most needs to act; and once the command comes off saturation the
+sensitivity flips sign through the overshoot, so the same update that helped
+during approach now destabilizes the hold. The earlier strawman configuration
+(infeasible $\tau_m$, the 5× `dt` error) guaranteed a large persistent $e_m$
+that drove the gains to their bounds; fixing those removes the artifact but not
+the underlying sign/saturation problem, and $\sigma$-modification only bounds
+the resulting drift without restoring a usable gradient. This is now a
+*defensible* negative result rather than a strawman: classical
+model-reference adaptation does not solve the task even when configured
+favourably, which is precisely the gap a model-free learned policy — which
+estimates what to do from returns rather than from a presumed sensitivity sign
+— is positioned to fill.
+
+![MRAC success-rate heatmap across reference-model configurations and scenarios — uniformly 0%.](../figures/fig5_mrac.png)
+
+*Figure 5.6 — MRAC with a feasible reference model: 0% success across every (τ_m, σ) configuration and scenario.*
+
+## 5.7 Task Discriminativeness: Why the Actuator Axis Matters
+
+A controlled benchmark must be able to *distinguish* the controllers it
+compares; a task on which every method scores identically measures nothing.
+This section quantifies the discriminating power of each randomization axis and
+explains why the original design failed it.
+
+Sweeping mass 5→50 kg — a tenfold range, well beyond the 4:1 training span —
+moves fixed-PID settling only ~11% (11.06→12.30 s). Sweeping actuator strength
+0.5→2.0 moves it **3.7× (21.8→5.9 s)**. The contrast is not a quirk of the
+controller but a property of the plant: §3.2 showed $v_{\max}\propto\kappa$ is
+independent of mass, with mass entering only the acceleration time constant
+$\tau_v\propto m$, which contributes a transient of order a few hundred
+milliseconds against a cruise of ten-plus seconds. Mass therefore moves
+settling by roughly $\tau_v/t_s \sim$ a few percent, while actuator strength
+moves the dominant $d/v_{\max}$ term proportionally. The original mass-only
+randomization sat on the *flat* axis, which is why — compounded by the
+integral-reset aid (§5.6) — every controller looked identical at ~100% / ~0
+overshoot and nothing could be concluded. Adding the actuator axis put a steep,
+discriminating gradient into the task; it is the single change that makes the
+controller comparison meaningful, and it is the reason RQ2's regime-dependence
+is visible at all.
+
+The mass sweep doubles as the cleanest demonstration of the F6 context bug
+(§5.3.1). Re-running the *original* Stage-5 context agent across the sweep with
+the broken constant $(1,1)$ context reproduces the published fast numbers,
+whereas pushing the *true* per-point context yields a curve essentially on top
+of the blind agent's — the "context advantage" evaporates when the agent is
+actually shown its context in-distribution. Plotting both against the blind
+baseline on one axis makes the artifact impossible to miss, and is the figure
+that originally triggered the audit of the static-evaluation path.
+
+![Mass sweep vs actuator sweep: fixed-PID settling is nearly flat across a 10× mass range but steep across actuator strength.](../figures/fig5_mass_sweep.png)
+
+*Figure 5.7 — Mass sweep (settling and success vs mass). Settling moves ~11% over a 10× mass range — the flat axis that motivated adding the discriminative actuator axis (cf. Figure 5.2).*
+
+## 5.8 Mid-Approach Shock: The Boundary of Adaptation
+
+Firing a large parameter step at step 30–60 (mid-approach) probes transient
+adaptation (Table 5.5, 10 seeds).
+
+| Shock | Fixed | Context | Blind |
+|-------|-------|---------|-------|
+| Mass ×2.5 | 100%, 10.3 s | 100%, 11.1 s | 100%, 13.9 s |
+| Actuator ×0.5 | 30%, 48.5 s | 30%, 48.4 s | 30%, 50.0 s |
+
+*Table 5.5 — Recovery from mid-approach shock (success, recovery time).*
+
+Two findings. A **mass** shock is handled by all controllers; the
+context-before-blind ordering (11.1 vs 13.9 s) is the student's re-inference
+cost, visible because the parameter changed mid-episode. An **actuator** shock
+— halving motor authority mid-approach — collapses every controller to 30%
+success, identically: **gain scheduling cannot rescue a mid-episode loss of
+physical authority**, because no choice of gains compensates for missing torque.
+The learned agents' value is thus per-episode *initial* adaptation, not
+transient shock rejection — a clean and honest scientific boundary.
+
+The trajectory traces (Figure 5.x) make the two regimes legible. Under the
+**mass** shock the position curves of all three controllers kink at the shock
+step and then re-converge to the target: the heavier vehicle decelerates more
+slowly, but the actuator still has the authority to stop it, so every controller
+eventually holds. The context agent's $K_d$ trace steps up promptly when the
+mass-scale input jumps; the blind agent's $K_d$ rises more gradually as the
+heavier inertia reveals itself through the trajectory — the visual signature of
+the 2.8 s re-inference lag, and a second, independent confirmation (alongside
+the RQ4 probe) that the blind agent identifies online rather than reacting
+reflexively. Under the **actuator** shock the picture is qualitatively
+different and identical across controllers: the velocity simply saturates at the
+new, lower $v_{\max}$, the position ramps toward the target at half the previous
+rate, and most episodes time out before completing the 25-step hold — no $K_d$
+trace, however aggressive, changes the outcome, because the missing quantity is
+torque, not gain. This is the angular-free analogue of the pendulum's
+extreme-OOD corner (§5.10): at the authority ceiling, knowing or inferring the
+parameter is irrelevant. Stating this boundary explicitly is important for
+honesty — it bounds the claim "RL adapts" to *initial-condition* adaptation and
+forecloses an overclaim about disturbance rejection that the (corrected,
+mid-approach) disturbance timing might otherwise have invited.
+
+## 5.9 Learned Gain Regimes
+
+Examining the scheduled gains, the teacher and student converge to two
+different but viable regimes: the teacher runs lower $K_p$ (~1.43) and higher
+$K_d$ (~1.5), the student the reverse ($K_p$ ~1.86, $K_d$ ~1.17) — both at 100%
+success, showing the task admits a family of solutions. Hold-phase gains are
+nearly invariant to the hidden parameter (e.g. teacher $K_d$ moves 1.521→1.498
+across actuator 0.6→1.4), indicating the agents learn a robust operating point
+more than a steep parameter→gain schedule. This coheres with §5.4 (depth
+doesn't matter) and §5.8 (shocks aren't rescued by gain changes): the lever the
+agents pull is initial calibration and approach shaping, not a dramatic
+gain surface. (Approach-phase gains carry more of the scheduling than the hold
+phase analysed here; this is noted as a refinement.)
+
+Figure 5.x plots the steady-state $K_p$, $K_i$, $K_d$ against actuator strength
+for both agents at nominal mass. Two things are visible. The curves are
+**nearly horizontal** — over the full training actuator range the teacher's
+$K_d$ moves about 1.5%, far less than the 3.7× change in the *task* difficulty
+(settling) over the same range — so whatever adaptation produces the RQ2
+advantage is not a large hold-phase gain change. And the two agents' curves are
+**offset but parallel**: the teacher sits at low-$K_p$/high-$K_d$, the student
+at high-$K_p$/low-$K_d$, each essentially flat. That two distinct, nearly
+parameter-independent operating points both achieve 100% success says the task
+has a *basin* of adequate gains rather than a sharp optimum, which in turn
+explains why the blindness penalty is small (the student need only land
+somewhere in the basin, not pinpoint the teacher's exact gains) and why stack
+depth barely matters (no precise per-step gain target to track). The honest
+qualification, repeated from §5.9's opening, is that this analysis is of the
+*hold* phase; the approach and braking phases, where the controller is actually
+fighting the dynamics, are where any genuine scheduling would appear, and
+characterizing those is left to future work (§7.2). What can be said firmly is
+that the learned controllers are closer to *well-chosen robust regulators* than
+to *steep gain schedulers* — a more modest and more accurate description than
+"the agent learns a gain schedule", and one the data supports directly.
+
+![Steady-state Kp, Ki, Kd vs actuator strength for context and blind agents — two flat, offset operating points.](../figures/fig5_gain_regimes.png)
+
+*Figure 5.8 — Learned gain regimes vs actuator strength (mass = 10 kg). The teacher (low-Kp/high-Kd) and student (the reverse) occupy two distinct but near-flat operating points — robust regulators rather than steep schedules.*
+
+## 5.10 Transfer to an Unstable Plant: Inverted Pendulum
+
+On the inverted-pendulum balance task with randomized pole mass and actuator
+gear, the framework transfers and the RL advantage is *larger* than on the car,
+because the plant is unstable (Table 5.6, survival fraction).
+
+| Scenario | Fixed PID | Blind | Context |
+|----------|-----------|-------|---------|
+| Nominal / Light / Heavy / Weak-Gear | 1.00 | 1.00 | 1.00 |
+| Heavy Pole + Weak Gear | **0.58** | 0.95 | **1.00** |
+| OOD Very Weak Gear | **0.46** | 0.75 | 0.60 |
+
+*Table 5.6 — Pendulum balance survival.*
+
+Fixed gains fail the hard dynamics corners (Heavy-Pole-Weak-Gear 0.58, OOD
+Weak-Gear 0.46); the learned agents rescue them (context 1.00 / blind 0.95 on
+Heavy-Pole-Weak-Gear).
+
+The structure of the result is worth dwelling on, because it sharpens what
+"adaptation matters" means. On the four benign scenarios — nominal, light pole,
+heavy pole, weak gear taken singly — every controller, including fixed PID,
+survives the full episode: a single well-chosen gain set is adequate when only
+one parameter deviates moderately. The fixed baseline fails only when *two*
+adverse deviations compound (a heavy pole that demands strong corrective torque
+*and* a weak gear that cannot supply it, or an extreme gear deficit). These are
+exactly the corners where a fixed compromise gain is wrong in both directions
+at once — too weak for the heavy pole if tuned for the nominal, too aggressive
+and oscillatory for the light pole if tuned for the heavy. The learned agents,
+by selecting gains per episode, escape the compromise: the context agent reads
+the pole mass and gear directly and commits to a matched gain set; the blind
+agent infers them from the early sway of the pole. This is the same
+"per-episode initial calibration" mechanism identified on the car (§5.8–5.9),
+but here it is the difference between balancing and falling rather than between
+settling in 11 s or 14 s — which is why the *magnitude* of the RL advantage is
+so much larger on the unstable plant.
+
+Two honest caveats. On the most extreme corner (OOD Very Weak Gear, 0.45)
+*all* controllers struggle and the teacher/student ordering inverts within
+noise (context 0.60 < blind 0.75) — at the edge of controllability, having the
+true parameter does not help if no gain set can stabilize the plant with the
+available torque, the angular analogue of the car's actuator-authority ceiling
+(§5.8). And the pendulum study uses two seeds and a cascade outer loop specific
+to balancing, so it is reported as a transfer *demonstration*, not a second
+full quantitative study. With those caveats, it is the clearest evidence in the
+thesis that learned gain scheduling adds real value over fixed gains when
+adaptation genuinely matters, and that the contribution is not an artifact of
+the wheeled-vehicle plant.
+
+![Pendulum balance survival by scenario for fixed PID, blind, and context controllers.](../figures/fig5_pendulum_survival.png)
+
+*Figure 5.9 — Pendulum transfer. Fixed gains fail the compound hard corners (Heavy-Pole-Weak-Gear, OOD Weak-Gear); the learned agents rescue them — the largest RL-over-fixed advantage in the thesis.*
+
+## 5.11 Summary
+
+RL gain scheduling is feasible and generalizes (RQ1); privileged context gives
+a modest, regime-dependent edge that the audit shows was previously overstated
+(RQ2); memory depth is nearly irrelevant though recurrence helps (RQ3); the
+blind agent provably encodes mass during acceleration and actuator strength
+during cruise (RQ4). Against fair classical baselines the learned agents do not
+win on windup handling (anti-windup PID matches them) but do win on adaptation
+to unknown and especially unstable dynamics (pendulum). Their value is initial-
+condition adaptation, not transient shock rejection. Chapter 6 interprets these
+findings and the audit that produced them.

@@ -1,96 +1,188 @@
 # Chapter 4 — Experimental Setup
 
-## 4.1 Evaluation Protocol
+This chapter defines how the controllers are evaluated and compared: the
+evaluation protocol and its honest treatment of variance, the scenario suite,
+the agents and baselines, the metrics, the statistical methodology, and the
+compute environment.
 
-All agents were evaluated under a shared protocol applied uniformly across every scenario. Each evaluation episode used a fixed target position of 5.0 m and a maximum episode length of 5,000 steps. At the RL control rate of 50 Hz (Section 3.2), this corresponds to a maximum episode duration of 100 seconds — far beyond the time required by any agent to settle, ensuring that failure to meet the success criterion reflects genuine inability rather than time truncation.
+## 4.1 Evaluation Protocol (v2)
 
-**Success criterion.** An episode is counted as successful if the vehicle's position remains within ±0.05 m of the target for 25 consecutive control steps. This requires sustained hold behaviour rather than a momentary crossing of the tolerance band.
+A controller is evaluated by rolling it out, with a deterministic policy, on a
+scenario for a fixed budget of up to 5000 control steps (100 s) and recording
+the per-step position trace. The original protocol (v1) fixed the scenario
+physics exactly and repeated the identical deterministic episode ten times, so
+every "seed" produced byte-identical numbers — reporting $n=1$ as $n=10$, with
+zero measured variance. Protocol v2 corrects this by introducing genuine
+per-episode variation:
 
-**Settling time.** Settling time is defined as the elapsed simulation time at the first control step at which the vehicle enters and subsequently maintains the ±0.05 m tolerance band for at least 25 consecutive steps. Formally, if $i^*$ is the smallest step index satisfying $|e(j)| \leq 0.05$ m for all $j \in [i^*, i^* + 25)$, then settling time $t_s = i^* \cdot \Delta t$, where $\Delta t = 0.02$ s is the RL control timestep ($= \text{frame\_skip} \times \text{physics timestep} = 10 \times 0.002$ s).
+- **Physics bands.** Each episode samples mass within $\pm10\%$, friction
+  within $\pm10\%$, and actuator strength within $\pm5\%$ of the scenario
+  centre.
+- **Target jitter.** The target distance is jittered $\pm0.5$ m per episode.
+- **True context push.** The sampled physics are written *both* to the plant
+  and to the context observation. (In v1 the context observation was left at a
+  constant $(1,1)$, ~11× outside the agent's training context distribution —
+  the bug that manufactured the original RQ2 result.)
 
-**Metrics reported.** Five metrics are computed per episode:
+Ten episodes are drawn per scenario per seed, over five training seeds, giving
+50 genuinely distinct episodes per scenario per agent.
 
-| Metric | Definition |
-|--------|-----------|
-| Success rate (%) | Fraction of episodes where the 25-step hold criterion is met |
-| Settling time (s) | $t_s$ as defined above; reported as mean ± range across evaluation seeds |
-| Overshoot (m) | $\max(0,\, \max_t x(t) - x_\text{target})$ — maximum position exceedance past the target |
-| IAE | $\sum_{k=1}^{N} |e_k| \cdot \Delta t$ — integrated absolute error over the episode |
-| Final absolute error (m) | $|e(t_\text{final})|$ — tracking error at the last recorded step; reported primarily for the no-reset validation in Section 5.4 |
+### 4.1.1 Metric definitions
 
-**Evaluation seeds.** Ten seeds (70,000–70,009) are used to call `env.reset(seed=·)` at the start of each episode. In static evaluation (Section 4.2), the physics parameters are fixed per scenario and the policy is deterministic, so no stochastic elements are seeded — all ten static seeds produce identical trajectories. Seeds are run for consistency with the dynamic protocol. In dynamic evaluation, the seed initialises the environment's random number generator, which controls both the step at which the mid-episode disturbance fires (drawn uniformly from steps 120–220) and the disturbance magnitudes. The ten dynamic seeds therefore sample ten distinct perturbation scenarios, and results are reported as mean ± range across those samples.
+All metrics are computed from the per-control-step position trace
+$\{x_t\}_{t=0}^{T}$ with error $e_t = x_{\text{target}} - x_t$ and control
+period $\Delta t = 0.02$ s.
 
----
+- **Success** $\in\{0,1\}$: the episode achieves the hold criterion — there
+  exists a window of $H=25$ consecutive steps, all with $|e_t|\le\delta$
+  ($\delta = 0.05$ m). This is the binary task outcome.
+- **Settling time** $t_s$: the earliest time from which the error remains
+  within the band for the rest of the run,
+  $t_s = \Delta t\cdot\min\{i : |e_j|\le\delta\ \forall j\ge i\}$. If no such
+  $i$ exists the episode is recorded as a timeout at $T\Delta t$ (100 s). This
+  "stays-within" definition (rather than first-entry) avoids crediting an
+  agent that enters the band, overshoots out, and returns.
+- **Overshoot** $= \max(0,\ \max_t x_t - x_{\text{target}})$ — the furthest the
+  vehicle travels past the target.
+- **IAE** (integral of absolute error) $= \sum_t |e_t|\,\Delta t$ — a single
+  scalar capturing the whole transient's error mass; lower is tighter tracking.
+- **Final absolute error** $= |e_T|$ — residual at episode end, a check that a
+  "success" is genuinely held, not a fly-through.
 
-## 4.2 Evaluation Scenarios
+The unit error corrected in the audit (F1) affected $t_s$ and IAE (both scale
+with $\Delta t$): using the physics timestep 0.002 s instead of the control
+period 0.02 s reported them 10× too small. Overshoot, success, and final error
+are dimensionless-in-time and were unaffected — which is one reason the error
+went unnoticed originally (the success rates looked correct).
 
-Evaluation is structured into two protocols: static and dynamic. Static evaluation isolates agent performance under constant physics; dynamic evaluation tests robustness to mid-episode parameter changes and out-of-distribution conditions.
+## 4.2 Scenario Suite
 
-### Static Evaluation
+The scenario suite is designed, not arbitrary: each row isolates a specific
+question about generalization. The first five sit inside the training
+distribution and probe different *combinations* of the axes — a nominal anchor,
+a fast plant (light + strong motor) and a slow plant (heavy + weak motor) to
+span the discriminating actuator axis, and the two mass edges (heavy-slippery,
+light-grippy) retained from the original design to confirm that the friction
+axis is inert (these two should, and do, behave like their mass-only
+equivalents). The last three are deliberately **out-of-distribution**, one per
+extrapolation direction: OOD Ultra Heavy pushes mass to 1.75× the training
+ceiling, OOD Weak Motor pushes the actuator below the training floor (the
+single hardest in-isolation axis), and OOD Heavy Weak combines an above-range
+mass with a below-range actuator to test whether failures *compound* off-
+distribution. Reporting these separately (never pooled) lets a reader see
+exactly where, if anywhere, the learned policies break — and they do not, which
+is the substance of the RQ1 generalization claim.
 
-In static evaluation, mass and friction are fixed for the entire episode. Three scenarios span the training distribution:
+Eight static scenarios span the three dynamics axes, including out-of-
+distribution (OOD) conditions beyond the training ranges:
 
-| Scenario | Mass (kg) | Friction | Notes |
-|----------|-----------|----------|-------|
-| Standard | 10.0 | 1.0 | Nominal operating point; centre of training distribution |
-| Heavy and Slippery | 20.0 | 0.2 | Upper mass boundary, lower friction boundary |
-| Light and Grippy | 5.0 | 2.0 | Lower mass boundary, upper friction boundary |
+| Scenario | Mass (kg) | Friction | Actuator | Note |
+|----------|-----------|----------|----------|------|
+| Standard | 10 | 1.0 | 1.0 | nominal |
+| Light Strong Motor | 6 | 1.0 | 1.3 | fast |
+| Heavy Weak Motor | 18 | 1.0 | 0.7 | slow |
+| Heavy and Slippery | 20 | 0.2 | 1.0 | mass edge |
+| Light and Grippy | 5 | 2.0 | 1.0 | mass edge |
+| OOD Ultra Heavy | 35 | 1.0 | 1.0 | mass 1.75× ceiling |
+| OOD Weak Motor | 10 | 1.0 | 0.45 | actuator below floor |
+| OOD Heavy Weak | 30 | 1.0 | 0.55 | combined OOD |
 
-These scenarios probe whether agents have learned to generalise across the full range of training conditions. As noted in Section 3.3, translational dynamics in this rolling-contact simulation are dominated by mass; the friction dimension provides limited independent signal, a limitation discussed in Section 6.2.
+**Dynamic evaluation** adds the mid-episode disturbance (§3.3) to each
+scenario. **Robustness probes** (Chapter 5) additionally sweep a single axis
+(mass 5→50 kg; actuator 0.5→2.0) and apply large mid-approach shocks (mass
+×2.5; actuator ×0.5). The pendulum uses an analogous seven-scenario suite over
+pole mass and gear, including OOD corners.
 
-### Dynamic Evaluation
+## 4.3 Agents and Baselines
 
-Dynamic evaluation applies a mid-episode disturbance to each of the three in-distribution scenarios, and additionally tests two out-of-distribution (OOD) conditions. The disturbance mechanism is described in Section 3.3: at a random step in [120, 220], mass is multiplied by a scale factor drawn from [0.9, 1.3] and friction by a scale factor from [0.5, 1.4].
+| Controller | Type | Observation | Action |
+|------------|------|-------------|--------|
+| Fixed PID | classical | — | constant $[0,0,0]$ |
+| Anti-Windup PID | classical | — | constant, + back-calc / clamp |
+| MRAC | classical adaptive | error/ref-model | MIT-rule gains |
+| Context-Aware (Stage 6a) | learned (teacher) | 9-dim ×10 | scheduled gains |
+| Blind (Stage 6b) | learned (student) | 6-dim ×10 | scheduled gains |
+| GRU Blind (Stage 6d) | learned (student) | 6-dim, recurrent | scheduled gains |
+| Stack-$k$ Blind (Stage 6c) | learned (student) | 6-dim ×$k$ | scheduled gains |
 
-The five dynamic scenarios are:
+Learned agents are trained for 1M steps on the `thesis_v6_hipmdp` protocol;
+the context/blind pair uses five seeds, the ablations one to two seeds (trends,
+not per-point variance).
 
-| Scenario | Base Mass (kg) | Base Friction | Notes |
-|----------|----------------|---------------|-------|
-| Standard | 10.0 | 1.0 | In-distribution with disturbance |
-| Heavy and Slippery | 20.0 | 0.2 | In-distribution with disturbance |
-| Light and Grippy | 5.0 | 2.0 | In-distribution with disturbance |
-| OOD Ultra Heavy | 35.0 | 1.0 | 75% above training mass ceiling |
-| OOD Ultra Slippery | 20.0 | 0.05 | Below training friction floor |
+## 4.4 Metrics and Statistical Methodology
 
-The OOD conditions were selected to test generalisation at approximately twice the training mass ceiling (35 kg vs 20 kg maximum) and below the training friction floor (0.05 vs 0.1 minimum), without choosing values so extreme that failure would be trivially expected. These conditions were not seen during training by either RL agent.
+Three nested sources of variation are kept separate: **training seed** (5),
+**evaluation episode** (10 per scenario, genuinely varied under v2), and
+**scenario** (reported separately, never pooled).
 
----
+Per-scenario results are reported as mean ± standard deviation over the 50
+episodes and, for headline comparisons, as the **seed-level 95% bootstrap
+confidence interval** (10,000 resamples of the five per-seed means, percentile
+method — preferred over a normal approximation because $n_s = 5$ is far from
+asymptotic). Success rates use **Wilson score intervals**, which behave
+correctly near 0% and 100%.
 
-## 4.3 Agents Evaluated
+Pairwise method comparisons (e.g. context vs blind on a scenario) use **Welch's
+t-test** on the seed-level means, cross-checked with the distribution-free
+**Mann–Whitney U** where settling times are right-skewed by timeouts. Effect
+size is **Cliff's delta** (rank-based, robust to timeout truncation). Families
+of related comparisons are corrected with **Holm–Bonferroni**, reporting raw
+and adjusted $p$.
 
-Three agents are evaluated. Full architectural and training details appear in Chapter 3; this section provides a concise comparative reference.
+**Worked example of the seed-level test.** Take the Standard scenario,
+context vs blind. Each agent yields five per-seed settling means (one per
+training seed, each itself averaged over ten episodes); the context means
+cluster near 13.7 s, the blind near 14.6 s, with per-seed standard deviations
+of ~0.7 s. Welch's statistic is $t = (\bar x_c - \bar x_b)/\sqrt{s_c^2/5 +
+s_b^2/5}$; with a ~0.85 s difference and ~0.7 s within-group spread this gives
+$t\approx 1.9$ on ~8 effective degrees of freedom (Welch–Satterthwaite),
+$p\approx 0.09$ raw — and after Holm–Bonferroni over the eight scenarios, the
+Standard difference does *not* clear $\alpha=0.05$, whereas the larger-gap fast
+scenarios (Light Strong Motor, +12.8%) do. Cliff's delta on the same seed means
+is $\delta\approx 0.4$ (medium). This is exactly why the thesis reports RQ2 as a
+*regime-dependent trend that is significant on the fast scenarios and within
+noise on the slow ones*, rather than a single global $p$-value: with five seeds
+the test is honestly underpowered for the smaller gaps, and saying so is more
+defensible than over-claiming. The 95% bootstrap CI for the context Standard
+mean (10,000 resamples of the five seed means) is roughly $13.7 \pm 0.6$ s —
+wide, as five points require, and reported as such.
 
-| Agent | Description | Training Steps | Observation Dims |
-|-------|-------------|---------------|-----------------|
-| Fixed PID | Non-adaptive baseline. Action fixed at [0, 0, 0]; gains held at base values (Kp = 1.8, Ki = 0.7, Kd = 0.5) for the entire episode. No learning. | — | — |
-| Stage 5a — Context-Aware Agent | PPO agent. Observes position, velocity, error, current normalised gains, and measured mass/friction scales. Sees its own physics parameters directly. | 1,000,000 | 8 × 10 = 80 |
-| Stage 5b — Blind Agent | PPO agent. Observes position, velocity, error, and current normalised gains only. Must infer dynamics from 10-frame trajectory history. No mass or friction in observation. | 1,000,000 | 6 × 10 = 60 |
+What is *not* claimed: five seeds bound but do not precisely estimate seed-level
+variance, so CIs are wide and stated as such; episode-level pooling is not
+treated as independent sampling of the training process; swept-parameter curves
+(mass, actuator, stack depth) are descriptive trends with per-point dispersion,
+not hypothesis tests at every point. Where a single-seed ablation is reported
+(stack depth, GRU eval) it is explicitly a *trend*, and no inferential claim is
+attached to a difference smaller than the seed-level spread measured on the
+five-seed pair.
 
-Both RL agents were trained with curriculum learning (Section 3.5), domain randomisation (Section 3.3), and the `brake_integral_reset` mechanism active (Section 3.7). All evaluations use these same environment settings — the integral reset remains active for all three agents, including the Fixed PID baseline. The effect of this mechanism on the comparisons is analysed in Section 5.4.
+## 4.5 Reproducibility and Compute
 
-The Fixed PID baseline serves two purposes: it establishes a performance ceiling for a correctly pre-tuned non-adaptive controller, and the no-reset ablation (Section 5.4) reveals what the baseline achieves independently of the shared engineering aid.
+All training and evaluation ran on a single laptop (Intel i7-11800H, 32 GB RAM,
+RTX 3070 Laptop; the small MLP/GRU policies train on CPU). A 1M-step car run
+takes ~15 min (MLP) to ~75 min (GRU); the full 5-seed teacher/student set,
+ablations, and pendulum runs total roughly a day of wall-clock compute. Code,
+configuration presets (`thesis_v6_hipmdp`), trained weights, per-seed CSVs, and
+the analysis scripts are provided with the submission; the corrected
+evaluation pipeline and the audit log (`AUDIT_FINDINGS.md`) document the
+provenance of every reported number. Two operational interruptions (a sleep
+suspend and a transient Windows DLL-init failure) were handled with idempotent,
+resumable run scripts and did not affect results.
 
----
-
-## 4.4 Reproducibility
-
-All trained model weights (`.pth`), evaluation scripts, environment source code, and raw results (`.csv`) are provided in the accompanying `thesis_submission/` directory. The complete configuration for each agent is stored in `stage2_config.json` alongside the model checkpoint. Evaluation can be reproduced by running the scripts detailed below against the provided checkpoints:
-
-| Artefact | Path |
-|----------|------|
-| Stage 5a model (seed 7) | `benchmark_results/stage5a_context_cliff/seed_7/models/meta_rl_agent.pth` |
-| Stage 5b model (seed 7) | `benchmark_results/stage5b_blind_cliff/seed_7/models/meta_rl_agent.pth` |
-| Fixed PID eval script | `scripts/stage_baseline_fixed_pid.py` |
-| Stage 5a dynamic eval | `scripts/stage5a_eval_dynamic.py` |
-| Stage 5b dynamic eval | `scripts/stage5b_eval_dynamic.py` |
-| Raw results | `benchmark_results/*/eval_seed_summary.csv` |
-
-All reported RL results use training seed 7. A single training seed was used throughout; variance across random initialisations was not quantified, which is identified as a limitation in Section 6.2.
-
----
-
-## 4.5 Hardware and Compute
-
-All training and evaluation were conducted on a laptop system running Windows 11 with Python 3.10. The hardware configuration was: Intel Core i7-11800H processor (2.30 GHz, 8 cores), 32 GB DDR4 RAM, and an NVIDIA GeForce RTX 3070 Laptop GPU (8 GB VRAM). MuJoCo physics simulation ran on CPU; PPO gradient updates used the GPU via PyTorch.
-
-Each RL agent required approximately 45 minutes of wall-clock time to complete 1,000,000 training steps across four parallel environments. Evaluation of a single agent across all scenarios and seeds (static and dynamic) completed in under five minutes. The Fixed PID baseline required no training; full evaluation across all scenarios completed in under two minutes.
+Reproducibility was treated as a first-class concern, partly *because* the
+original results proved non-reproducible in the most basic sense — they could
+not be re-derived from the code, because the code computed settling time with
+the wrong timestep. The remediation enforces three habits. **Determinism where
+it matters:** every seed sets the Python, NumPy, and Torch generators, and the
+evaluation draws its per-episode physics and target jitter from a generator
+seeded by the episode index, so a given (seed, scenario, episode) triple is
+exactly reproducible. **Single source of truth for numbers:** every figure and
+table in Chapter 5 is generated from the CSVs the experiment scripts emit, not
+transcribed by hand, so a rerun regenerates the thesis's numbers mechanically;
+`utils/aggregate_seeds.py` is the one place cross-seed statistics are computed.
+**Idempotent, resumable runs:** each long run checks for its own output and
+skips or resumes rather than recomputing, which is what allowed the two
+interruptions to be recovered without re-running completed work. These are
+modest engineering practices, but the audit is a concrete demonstration of what
+their *absence* costs — and adopting them is part of the thesis's
+methodological argument, not incidental tooling.

@@ -1,135 +1,167 @@
-# Summary of Findings
-## Meta-RL for Adaptive PID Gain Scheduling Under Unknown Vehicle Dynamics
+# Summary of Findings (v2 — post-audit, June 2026)
+## Learning to Schedule PID Gains Under Hidden Dynamics Parameters
+
+> This supersedes the original FINDINGS_SUMMARY. Every number here comes from
+> the corrected pipeline (dt fix) and the Stage 6 / HiP-MDP experiments. The
+> full defect log and provenance is in `../AUDIT_FINDINGS.md`. Old numbers
+> (settling ~1.1–1.6 s, "context 14.5% faster everywhere", "fixed PID 0% no
+> reset") were artifacts and must not be reused.
 
 ---
 
 ## Objective
 
-Design and evaluate a reinforcement learning agent that learns to schedule PID gains in real time for a simulated 2-wheeled vehicle, without knowing the vehicle's mass or friction in advance. The central question: does learning-based adaptation add value over a fixed, hand-tuned PID controller when physics parameters are unknown?
+Study whether a model-free RL agent can schedule the gains of a classical PID
+controller in real time for a system whose physical parameters (mass, ground
+friction, actuator strength) are hidden and vary between — and within —
+episodes. The problem is framed as a **hidden-parameter MDP (HiP-MDP)**, and
+the central comparison is a **teacher–student** one: a context-aware agent
+that observes the hidden parameters versus a blind agent that must infer them
+from interaction history.
+
+## Research questions
+
+- **RQ1 (feasibility):** Can RL learn online PID gain scheduling that holds
+  position across a wide range of unknown, randomized dynamics?
+- **RQ2 (privileged context):** Does observing the hidden parameters
+  (context-aware "teacher") improve control over inferring them from history
+  (blind "student")?
+- **RQ3 (memory):** How much temporal context does the blind agent need —
+  frame-stack depth, and stacking vs recurrence?
+- **RQ4 (representation):** Does the blind agent's policy actually *encode*
+  the hidden parameters, and when in the trajectory do they become decodable?
+
+## System
+
+Two-loop control: an RL policy sets PID gain multipliers at 50 Hz; the PID
+runs at 500 Hz. MuJoCo two-wheeled car (primary plant) and MuJoCo inverted
+pendulum (transfer plant). Hidden parameters randomized per episode: mass
+[5,20] kg, friction [0.1,2.0], actuator strength [0.6,1.4]. Mid-episode
+disturbances and a position friction patch add within-episode variation.
+Five training seeds (7,21,42,84,123). Evaluation protocol v2: per-episode
+physics bands, target jitter, and a true context push (10 episodes × 8
+scenarios per seed).
 
 ---
 
-## System Built
+## Key findings
 
-A PPO-based Meta-RL agent trained on a MuJoCo vehicle environment with:
+### F-RQ1 — Feasibility confirmed
+Both context and blind agents reach **100% hold success on all 8 evaluation
+scenarios across all 5 seeds**, including out-of-distribution actuator (0.45)
+and mass (35 kg) conditions. Zero overshoot throughout. RL gain scheduling is
+a viable controller for this HiP-MDP.
 
-- **Adaptive PID loop**: the RL agent outputs gain adjustments each step; gains are clipped to physically meaningful ranges (Kp ∈ [0.8, 2.8], Ki ∈ [0.1, 1.3], Kd ∈ [0.0, 2.5])
-- **Temporal memory**: 10-frame observation stack, giving the policy a rolling window of recent trajectory history
-- **Domain randomisation**: mass drawn from [5, 20] kg and friction from [0.1, 2.0] at each episode reset, forcing generalisation
-- **Curriculum**: target distance increased from 3 m → 5 m → 7 m → 10 m over 1.5 M training steps
-- **Mid-episode disturbances**: mass and friction shifted mid-episode (step 120–220) and a low-friction floor patch applied at x = 1.5–2.4 m, testing robustness to sudden physics changes
+### F-RQ2 — Privileged context gives a modest, condition-dependent edge
+Context-aware settles faster than blind, but the gap depends on the regime
+(settling time, s, mean over 5 seeds):
 
-Two agent variants were trained and evaluated:
+| Scenario | Context | Blind | Blind penalty |
+|----------|---------|-------|---------------|
+| Light Strong Motor | 10.90 | 12.29 | +12.8% |
+| Standard | 13.72 | 14.57 | +6.2% |
+| Heavy Weak Motor | 18.61 | 19.16 | +3.0% |
+| OOD Weak Motor | 26.58 | 26.91 | +1.2% |
 
-| Agent | Observation | Description |
-|-------|-------------|-------------|
-| **Stage 5a — Context RL** | pos, vel, error, kp, ki, kd, **mass\_scale, friction\_scale** | Can see its own physics parameters |
-| **Stage 5b — Blind RL** | pos, vel, error, kp, ki, kd | Must infer dynamics from trajectory alone |
+The advantage is largest when the plant is fast (settling control-limited) and
+vanishes when the plant is actuator-limited (settling travel-time-limited).
+This **replaces** the original "+14.5% everywhere", which was an artifact of a
+context bug (the static evaluation fed the context agent a constant (1,1)
+context, ~11× outside its training distribution).
 
-Classical baseline: fixed PID at Kp = 1.8, Ki = 0.7, Kd = 0.5, action = [0, 0, 0] (no adaptation).
+### F-RQ3a — Frame-stack depth barely matters
+Blind agents trained with stack depth k ∈ {1,3,5,10,20} are statistically
+indistinguishable (Standard settling 14.2–14.7 s, 100% success at every k,
+including the near-memoryless k=1). The instantaneous observation already
+exposes the identifiable dynamics (actuator strength ∝ cruise velocity; the
+previous gains are in the observation), so temporal depth is not the load-
+bearing mechanism.
 
----
+### F-RQ3b — Recurrence (GRU) is the fastest blind variant
+A GRU recurrent blind policy reaches 100% success with the **lowest settling
+of any blind agent (~11.3 s vs 14.6 s for frame-stacking)** — faster even than
+the context MLP. This contradicts an earlier expectation (a Stage-4 GRU under
+a different protocol diverged); that failure was protocol-induced (speed
+governor + hard-overshoot termination), not inherent to recurrence. Caveat:
+the GRU has 128 hidden units vs the MLP's 2×64, so the gain conflates
+recurrence with capacity.
 
-## Results
+### F-RQ4 — Double dissociation in the learned representation
+Ridge probes (cross-validated, grouped by episode) decode the hidden
+parameters from the blind policy's penultimate activations, with a clean
+phase structure matching the plant physics:
+- **Mass** is decodable during **acceleration** (R² 0.37–0.39, steps 5–40),
+  decaying to ~0.05 in cruise — mass enters only through ẍ = F/m.
+- **Actuator strength** is decodable during **cruise** (R² 0.58–0.65, steps
+  20–160), and is *not* decodable early — it is revealed by terminal speed
+  v_max ∝ κ once cruising.
+- **Friction** is at best weakly/spuriously decodable (~0.28) — consistent
+  with rolling-contact non-identifiability.
+The blind agent encodes exactly the parameters its trajectory excites, in the
+phase where each becomes physically observable.
 
-### Static Evaluation — Fixed Physics Per Episode (10 seeds, 70000–70009)
+### F-classical — The fair classical baseline closes the windup gap
+- Fixed PID with the environment's `brake_integral_reset` aid: 100% success,
+  settling 11.2–12.5 s — the strongest, but the aid is task-aware.
+- Without the aid (no-reset env), **naive PID does not totally fail** (the
+  original "0% / never recovers" was a wrong-target measurement bug): it
+  recovers on 2/3 scenarios at 74–93 s with ~7 m overshoot transients.
+- **PID + back-calculation anti-windup (textbook) solves the no-reset task:
+  100% success, ~21 s, 0.13 m overshoot.** So "PID fails, therefore RL" is
+  untenable; RL's value rests on adaptation across varying dynamics, not on
+  windup handling.
+- **MRAC** (feasible reference model, corrected dt, normalized MIT rule):
+  still **0% success** on all configs — a defensible negative result for
+  classical adaptive control on this saturated nonlinear plant.
 
-| Agent | Scenario | Success | Settling (s) | Overshoot | IAE |
-|-------|----------|---------|-------------|-----------|-----|
-| Fixed PID | Standard | 100% | 1.116 | 0 m | 2.65 |
-| Fixed PID | Heavy & Slippery | 100% | 1.136 | 0 m | 2.79 |
-| Fixed PID | Light & Grippy | 100% | 1.254 | 0 m | 2.94 |
-| **Stage 5a** | Standard | **100%** | 1.254 | 0 m | 2.68 |
-| **Stage 5a** | Heavy & Slippery | **100%** | 1.278 | 0 m | 2.82 |
-| **Stage 5a** | Light & Grippy | **100%** | 1.390 | 0 m | 2.97 |
-| **Stage 5b** | Standard | **100%** | 1.446 | 0 m | 2.78 |
-| **Stage 5b** | Heavy & Slippery | **100%** | 1.476 | 0 m | 2.92 |
-| **Stage 5b** | Light & Grippy | **100%** | 1.568 | 0 m | 3.06 |
+### F-discriminative — Actuator strength is the axis that separates controllers
+Sweeping actuator strength 0.5→2.0 moves fixed-PID settling 21.8→5.9 s (3.7×).
+Mass, by contrast, moves it only ~11% over a 10× range — at the actuator-
+limited cruise speed, mass barely affects settling. This is why the original
+mass-only randomization was non-discriminative, and why the actuator axis was
+added.
 
-All three agents achieve 100% success with zero overshoot across all mass/friction scenarios. Stage 5b (blind) settles approximately **14–15% slower** than Stage 5a (context-aware). Fixed PID is fastest, as discussed in Finding 2 below.
+### F-shock — RL adapts initial conditions, not mid-episode authority loss
+Mid-approach parameter step (10 seeds):
+- Mass ×2.5: all 100%; recovery Fixed 10.3 s < Context 11.1 s < Blind 13.9 s
+  (the context<blind gap is the re-inference cost).
+- Actuator ×0.5: all collapse to 30% success, ~48–50 s, identically — gain
+  scheduling cannot rescue a mid-episode loss of physical authority.
+RL's benefit is per-episode initial gain calibration, not transient shock
+rejection.
 
-### Dynamic Evaluation — Mid-Episode Disturbances + OOD Conditions
+### F-gains — Robust operating point, not a steep schedule
+Context and blind converge to two different but viable gain regimes (context:
+lower Kp, higher Kd; blind: the reverse). Hold-phase gains are nearly
+invariant to the hidden parameter, indicating the agents learn a robust
+operating point more than a strongly parameter-varying schedule. (Approach-
+phase gain scheduling is analyzed separately in Ch. 5.)
 
-All five scenarios evaluated, including two out-of-distribution conditions (mass = 35 kg and friction = 0.05, neither seen during training):
-
-| Agent | Scenario | Success | Settling (s) | Overshoot |
-|-------|----------|---------|-------------|-----------|
-| Fixed PID | Standard | 100% | 1.116–1.142 | 0 m |
-| Fixed PID | Heavy & Slippery | 100% | 1.136 | 0 m |
-| **Stage 5a** | Standard | **100%** | 1.466–1.476 | 0 m |
-| **Stage 5a** | Heavy & Slippery | **100%** | 1.466–1.488 | 0 m |
-| **Stage 5a** | OOD Ultra Heavy (35 kg) | **100%** | 1.452–1.506 | 0 m |
-| **Stage 5a** | OOD Ultra Slippery | **100%** | 1.466–1.480 | 0 m |
-| **Stage 5b** | Standard | **100%** | 1.446–1.448 | 0 m |
-| **Stage 5b** | Heavy & Slippery | **100%** | 1.474–1.478 | 0 m |
-| **Stage 5b** | OOD Ultra Heavy (35 kg) | **100%** | 1.524–1.558 | 0 m |
-| **Stage 5b** | OOD Ultra Slippery | **100%** | 1.474–1.478 | 0 m |
-
-Both RL agents maintain 100% success under mid-episode disturbances and on OOD conditions well outside the training mass range. The disturbances applied during evaluation (step 120–220) had minimal impact on settling metrics, which is discussed as a limitation below.
-
----
-
-## Key Findings
-
-### Finding 1 — Physics context improves adaptation speed
-
-Stage 5a, which observes its own mass and friction scale, settles consistently **14–15% faster** than Stage 5b, which must infer dynamics purely from trajectory history. Both succeed; the difference is efficiency. This confirms that physics context in the observation is beneficial but not required for success.
-
-### Finding 2 — A hidden engineering aid equalised all agents
-
-A `brake_integral_reset` mechanism in the environment zeros the PID integrator when the vehicle enters the braking zone (|error| < 2.0 m). This was originally included to prevent integral windup and was active for all agents during both training and evaluation, including the fixed PID baseline.
-
-The consequence: fixed PID at pre-tuned base gains already behaves near-optimally once integral windup is removed at the critical moment. The RL agents learn conservative, safe gain schedules (higher Kd, lower Ki) at the cost of settling speed, which puts them at a disadvantage on pure speed metrics.
-
-To validate this, the fixed PID was evaluated with the `brake_integral_reset` **disabled**:
-
-| Agent | Scenario | Success | Overshoot | Final Error |
-|-------|----------|---------|-----------|-------------|
-| Fixed PID (no reset) | Standard | **0%** | 9.9 m | 3.0 m |
-| Fixed PID (no reset) | Heavy & Slippery | **0%** | 10.0 m | 10.0 m |
-| Fixed PID (no reset) | Light & Grippy | **0%** | 10.0 m | 3.0 m |
-
-Without the aid, fixed PID fails completely due to integral windup — the accumulated integral term during the 8 m approach exceeds what Kd = 0.5 can counteract at any reasonable braking velocity. This confirms that the aid, not the fixed gains themselves, was responsible for the strong baseline performance.
-
-This is identified as a **key experimental confound**: the integral reset mechanism made the environment inadvertently easy for fixed PID, and the comparison between fixed PID and RL in the standard evaluation does not reflect a fair test of adaptive versus non-adaptive control.
-
-### Finding 3 — Disturbance timing limits stress test validity
-
-Mid-episode disturbances were scheduled at steps 120–220, corresponding to 1.2–2.2 s after episode start. However, both RL agents typically settle within 1.25–1.57 s. This means most disturbances fired after the vehicle had already reached and stabilised at the target, having no measurable effect on success metrics. The dynamic evaluation results therefore reflect robustness of the initial approach phase only, not the response to disturbances during final settling.
-
----
-
-## Honest Assessment of Limitations
-
-1. **Single training seed**: All results reported are from seed 7. Multi-seed variance is not quantified, so it is not known how sensitive the learned policy is to random initialisation.
-
-2. **Integral reset confound**: The core comparison (RL vs fixed PID) is compromised by the brake_integral_reset aid. A fair demonstration of RL advantage would require disabling this aid and re-training — which was attempted but did not converge within the available compute budget (see below).
-
-3. **No-reset training failed to converge**: Training was run for 1.5 M and 3 M steps with and without overshoot penalties. The agent did not learn a stable Ki-suppression strategy. The likely root cause is a long temporal credit assignment gap: suppressing Ki at step ~50 of an approach to avoid windup at step ~600 is a difficult horizon for on-policy PPO with an MLP policy. This is left as future work.
-
-4. **Friction irrelevance**: Kinetic friction does not affect dynamics when wheels roll without slipping. The "Slippery" and "Grippy" scenarios therefore only differ meaningfully in mass, not friction. This limits the diversity of the evaluation.
-
-5. **Disturbance timing mismatch**: As noted in Finding 3, the disturbance window does not overlap with the active approach phase for the faster-settling agents, reducing the practical value of the dynamic evaluation.
+### F-transfer — The framework transfers to a second, unstable plant
+On the inverted pendulum (randomized pole mass × actuator gear), fixed PID
+fails the hard dynamics corners (Heavy-Pole-Weak-Gear survival 0.58, OOD
+Weak-Gear 0.46) while RL rescues them (context 1.00 / 0.60, blind 0.95 / 0.75).
+The RL advantage is larger here than on the car because the pendulum is
+unstable, so adaptation matters more.
 
 ---
 
-## Suggested Future Work
+## Honest limitations (carried into Ch. 6)
 
-- **Recurrent policy (LSTM/GRU)**: Would provide explicit memory of the integral history across the full approach, making Ki-suppression learnable without engineering aids.
-- **Multi-seed evaluation**: Repeat experiments with seeds [7, 21, 42, 84, 123] to quantify variance and confirm results are not seed-specific.
-- **Earlier disturbance window**: Shift mid-episode disturbances to steps 30–80 (during approach) to genuinely stress-test robustness.
-- **Explicit friction decoupling**: Use scenarios that vary mass and friction independently and confirm that mass is the dominant variable, or introduce viscous damping so friction has measurable effect.
+1. **Friction axis is inert** (rolling contact) — only mass and actuator are
+   real dynamics axes.
+2. **Gain scheduling does not rescue mid-episode authority loss** — RL value
+   is initial-condition adaptation.
+3. **Hold-phase gains are nearly flat** — the learned "schedule" is closer to
+   a robust fixed operating point.
+4. **GRU speed/capacity confound** — recurrence vs width not isolated.
+5. **CPU-only training, 5 seeds** — variance bounded, not precisely estimated;
+   bootstrap CIs over seeds are correspondingly wide.
+6. **Single eval seed for some ablations** (stack depth, GRU eval) — trends,
+   not tested hypotheses at every point.
 
----
-
-## Summary Table
-
-| Metric | Fixed PID | Stage 5a (Context) | Stage 5b (Blind) |
-|--------|-----------|-------------------|-----------------|
-| Success rate (static) | 100% | 100% | 100% |
-| Mean settling, Standard (s) | **1.116** | 1.254 | 1.446 |
-| Mean settling, Heavy+Slippery (s) | **1.136** | 1.278 | 1.476 |
-| Overshoot | 0 m | 0 m | 0 m |
-| OOD generalisation (35 kg) | not tested | **100%** | **100%** |
-| Success without integral reset | **0%** | not retrained | not retrained |
-| Adapts to unknown mass/friction | No | Yes | Yes |
+## What changed from the original thesis (provenance)
+The dt bug (10× settling error), the (1,1)-context bug (RQ2 artifact), the
+wrong-target no-reset measurement, the strawman MRAC, and the non-
+discriminative mass-only task were all identified and corrected. The honest
+re-analysis is treated as a methodological contribution, not hidden.

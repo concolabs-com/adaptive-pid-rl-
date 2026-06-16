@@ -108,6 +108,12 @@ mlruns/
 *.jpeg
 *.svg
 *.pdf
+# ...but DO version-control the thesis's own figures (they are thesis content,
+# and regenerating them needs the git-ignored benchmark_results CSVs).
+!thesis_doc/**/figures/
+!thesis_doc/**/figures/**
+!thesis_doc/figures/
+!thesis_doc/figures/**
 
 # Data files
 *.csv
@@ -131,3 +137,8 @@ $RECYCLE.BIN/
 
 # Temporary Documents
 thesis_writing/
+
+# Run logs and archives (throwaway)
+*.log
+*.rar
+MUJOCO_LOG.TXT

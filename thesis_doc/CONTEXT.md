@@ -1,66 +1,101 @@
 ---
 name: thesis-context
-description: Canonical glossary for the thesis — domain terms, agent names, key mechanisms
+description: Canonical glossary for the thesis — domain terms, agent names, key mechanisms, key numbers (v2, post-audit)
 metadata:
   type: project
 ---
 
-# Thesis Domain Glossary
+# Thesis Domain Glossary (v2 — post-audit)
+
+> Use these exact terms. Challenge any deviation. All numbers come from the
+> corrected pipeline; see `FINDINGS_SUMMARY.md` and `../AUDIT_FINDINGS.md`.
+
+## Framing
+
+**Hidden-Parameter MDP (HiP-MDP)** — the formal object: a family of MDPs
+indexed by a latent parameter vector ψ = (mass, friction, actuator strength),
+drawn per episode. The blind agent faces the induced POMDP.
+
+**Teacher–student / privileged information** — the context-aware agent
+(teacher, observes ψ) vs the blind agent (student, infers ψ from history).
+Trained from scratch independently (not distilled); isolates the observation
+regime. RMA (Kumar et al. 2021) is the reference paradigm.
+
+**Implicit system identification** — the blind agent inferring ψ from
+closed-loop trajectory; measured directly by the probing analysis (RQ4).
 
 ## Agents
 
-**Stage 5a — Context RL (Context-Aware Agent)**
-PPO agent that observes position, velocity, error, current gains (Kp, Ki, Kd), AND measured mass/friction scales. Can see its own physics parameters directly.
+**Context-Aware Agent (Stage 6a)** — PPO, 9-dim observation including
+mass/friction/actuator scales, frame stack 10. The privileged teacher.
 
-**Stage 5b — Blind RL (Blind Agent)**
-PPO agent that observes position, velocity, error, and current gains only. Must infer dynamics from 10-frame trajectory history. No mass/friction in observation.
+**Blind Agent (Stage 6b)** — PPO, 6-dim observation (no context), frame stack
+10. Must infer dynamics from history. The student. Primary deployable result.
 
-**Fixed PID (Classical Baseline)**
-Non-adaptive controller with fixed gains Kp=1.8, Ki=0.7, Kd=0.5. Action always [0,0,0]. No learning, no adaptation.
+**GRU Blind Agent (Stage 6d)** — recurrent (128 hidden) blind variant; fastest
+blind agent (RQ3b).
 
-## Key Mechanisms
+**Fixed PID (Classical Baseline)** — constant gains Kp=1.8, Ki=0.7, Kd=0.5,
+action [0,0,0].
 
-**Gain Scheduling (in this thesis)**
-The RL agent outputs continuous adjustments to PID gains each step, not raw motor commands. The agent operates in "gain space" — PID computes the actual control signal.
+**Anti-Windup PID** — fixed gains + textbook back-calculation (Tt=1 s) or
+conditional integration. The *fair* classical baseline (solves the no-reset
+task).
 
-**Domain Randomisation**
-Mass sampled from [5, 20] kg and friction from [0.1, 2.0] at each episode reset. Forces policy to generalise across dynamics rather than overfit to a single operating condition.
+**MRAC** — MIT-rule model-reference adaptive control; feasible reference model
+(τ_m ≥ 10 s). Fails (0%) — classical adaptive negative result.
 
-**Brake Integral Reset (`brake_integral_reset`)**
-Engineering mechanism in the simulation environment: zeros the PID integrator when the vehicle enters the braking zone (|error| < 2.0 m). Active for ALL agents including Fixed PID. Identified as a key experimental confound — without it, Fixed PID fails completely (0% success, ~10 m overshoot).
+## Key mechanisms
 
-**Frame Stacking**
-10 consecutive observations concatenated before input to policy network. Gives the policy a rolling temporal window (~0.2 s) to infer dynamics from trajectory shape. Used as implicit memory in place of recurrence (LSTM/GRU).
+**Gain scheduling (here)** — RL outputs continuous PID gain multipliers each
+step; PID computes the control signal. K = clip(K_base + ΔK · a), a ∈ [-1,1].
 
-**Curriculum Learning**
-Target distance increases over training: 1–3 m → 1–5 m → 1–7 m → 1–10 m across 1M steps. Agent learns settling behaviour on easy targets before encountering long-distance approaches where integral windup becomes significant.
+**Domain randomization** — mass [5,20] kg, friction [0.1,2.0], actuator
+strength [0.6,1.4], sampled per episode.
 
-## Environment Terms
+**Actuator-strength axis** — scales motor gain + joint force limit together;
+terminal speed v_max ∝ κ. The discriminative dynamics axis (mass is not).
 
-**Braking Zone**
-Region where |error| < 2.0 m from target. Where the brake_integral_reset fires and where deceleration rewards are applied.
+**Brake integral reset** — env aid zeroing the integrator in the braking zone
+(|e|<2 m). Task-aware; equivalent to a crude conditional-integration anti-
+windup. Active for all agents; analyzed as a confound.
 
-**Mid-Episode Disturbance**
-Mass multiplied by scale ∈ [0.9, 1.3] and friction by scale ∈ [0.5, 1.4] at a random step in [120, 220] (~1.2–2.2 s after episode start). Applied during dynamic evaluation.
+**Frame stacking** — 10 stacked observations as finite-memory belief
+approximation. Depth barely matters here (RQ3a).
 
-**Position Friction Patch**
-Friction reduced to 35% of nominal in region x ∈ [1.5, 2.4] m. Active every step during training.
+**Eval protocol v2** — per-episode physics bands (mass ±10%, friction ±10%,
+actuator ±5%), target jitter ±0.5 m, true context push; 10 episodes × 8
+scenarios × 5 seeds. Replaces the v1 deterministic-repeat protocol.
 
-**OOD Conditions**
-Out-of-distribution: mass = 35 kg (75% above training ceiling of 20 kg), friction = 0.05. Neither seen during training. Both RL agents achieve 100% success under these conditions.
+## Plants
 
-## Research Questions
+**Car** — two-wheeled MuJoCo vehicle, drive to 5 m and hold ±0.05 m for 25
+steps. Primary plant.
 
-**RQ1 (Feasibility):** Can an RL agent learn to schedule PID gains in real time, achieving reliable position control across unknown mass and friction conditions?
+**Inverted pendulum** — MuJoCo cart-pole balance; randomized pole mass ×
+actuator gear; cascade outer loop shapes the angle setpoint, scheduled angle
+PID inner loop. Transfer plant.
 
-**RQ2 (Context Benefit):** Does providing explicit physics context (mass/friction scales in observation) improve adaptation compared to a blind agent inferring dynamics from trajectory history alone?
+## Research questions
 
-## Thesis Title (working)
-"Reinforcement Learning for Adaptive PID Gain Scheduling Under Unknown Vehicle Dynamics"
+- **RQ1** feasibility · **RQ2** privileged context vs inference ·
+  **RQ3** memory (stack depth + recurrence) · **RQ4** representation/probing.
 
-## Key Numbers
+## Key numbers (corrected)
 
-- Context-aware vs blind settling time gap: **14–15% slower for blind**
-- Static evaluation success: **100% for all agents**
-- Fixed PID without integral reset: **0% success, ~10 m overshoot**
-- OOD generalisation (35 kg): **100% success for both RL agents**
+- Settling (Standard): Fixed PID 11.2 s, Context 13.7 s, Blind 14.6 s, GRU 11.3 s.
+- All agents 100% success, 8 scenarios, 5 seeds, zero overshoot.
+- Context vs blind: +1.2% to +12.8% (regime-dependent), not a flat 14.5%.
+- Actuator sweep: fixed-PID settling 21.8 s (κ=0.5) → 5.9 s (κ=2.0), 3.7×.
+- Anti-windup PID no-reset: 100%, ~21 s. Naive PID no-reset: 2/3 recover, 74–93 s.
+- MRAC: 0% (all feasible configs).
+- Probing R²: mass 0.37–0.39 (acceleration), actuator 0.58–0.65 (cruise),
+  friction ~0.28 (spurious).
+- Shock: mass ×2.5 → 100% (recovery 10–14 s); actuator ×0.5 → 30% (all agents).
+- Pendulum Heavy-Pole-Weak-Gear survival: Fixed 0.58, blind 0.95, context 1.00.
+
+## Title (working)
+"Learning to Schedule PID Gains Under Hidden Dynamics Parameters: A
+Teacher–Student Study of Implicit System Identification" (confirm with
+supervisor; old title "RL for Adaptive PID Gain Scheduling Under Unknown
+Vehicle Dynamics" still acceptable).
