@@ -102,10 +102,31 @@ Chapter 5 shows it solves the windup-prone task that naive PID fails.
 
 ## 2.3 Classical Adaptive Control
 
+Adaptive control is the classical response to *changing* plant parameters, and
+three families bracket the design space this thesis works in.
+
 **Gain scheduling** stores gain sets indexed by a measured scheduling variable
-and interpolates between them. It is effective when the scheduling variable is
-measurable and the schedule can be designed offline — neither of which holds
-when the dynamics parameters are hidden, as here.
+and interpolates between them — the canonical example being an aircraft
+autopilot scheduled on airspeed and altitude. It is effective and widely
+deployed, but it presupposes two things this thesis denies: that the scheduling
+variable is *measurable* at run time, and that the schedule was *designed
+offline* from knowledge of how the dynamics vary with it. When the varying
+parameter is hidden (no sensor) and the variation is not modelled in advance,
+classical scheduling has nothing to index on. The learned policies here can be
+read as gain scheduling where the schedule is *learned from experience* and
+indexed on either the observed context (teacher) or an inferred latent
+(student), removing both prerequisites.
+
+**Self-tuning regulators** estimate the plant parameters online (e.g. by
+recursive least squares on an ARX model) and re-solve for the controller gains
+each step — certainty-equivalence adaptive control. They are powerful when the
+plant admits a good linear-in-parameters model, but the online identification
+is fragile under input saturation and unmodelled nonlinearity (exactly this
+plant's regime), and they add an estimator whose convergence must itself be
+guaranteed. The RL student is loosely analogous — it too infers something about
+the plant online — but it learns the *whole* map from history to gains
+end-to-end against the control objective, rather than chaining a separately
+specified estimator and gain-solver.
 
 **Model-reference adaptive control (MRAC)** adapts the controller online so the
 closed loop tracks a reference model $y_m$. The MIT rule performs gradient

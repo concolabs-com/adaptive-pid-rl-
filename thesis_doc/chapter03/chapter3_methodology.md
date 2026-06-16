@@ -136,13 +136,26 @@ Each episode samples a hidden parameter vector $\psi = (m,\mu,\kappa)$:
 | Friction $\mu$ | $[0.1,2.0]$ | **inert** — rolling contact, no slip (see below) |
 | Actuator strength $\kappa$ | $[0.6,1.4]$ | scales $v_{\max}\propto\kappa$ — the discriminative axis |
 
-The actuator axis scales the motor gain and the joint force limit together, so
-the whole torque envelope (and hence terminal speed) scales by $\kappa$. It was
-added after the audit found that mass-only randomization left the task nearly
-non-discriminative (§5.x). **Friction is retained but documented as inert**:
-because the wheels roll without slipping at these operating points, the sliding-
-friction coefficient does not enter the translational dynamics; the probing
-analysis (§5.x) confirms it is at best weakly identifiable.
+The ranges are chosen to be wide enough to demand adaptation yet within the
+plant's physical capability. Mass spans a **4:1 ratio** (5–20 kg), bracketing
+the empty-to-loaded swing of a small vehicle; the actuator axis spans
+$\pm40\%$ of nominal strength, enough to move terminal speed by the same factor
+without rendering the task impossible. The actuator axis scales the motor gain
+and the joint force limit *together*, so the whole torque envelope (and hence
+the terminal speed $v_{\max}\propto\kappa$ derived in §3.2) scales by $\kappa$;
+scaling only one would let the controller saturate against the unscaled limit
+and partially mask the change. This axis was added after the audit found that
+mass-only randomization left the task nearly non-discriminative (§5.7) — a
+direct consequence of $v_{\max}$ being mass-independent. **Friction is retained
+but documented as inert**: because the wheels roll without slipping at these
+operating points, the Coulomb friction coefficient does not enter the
+translational dynamics (it would matter only at the slip boundary, which the
+low torques never reach); the probing analysis (§5.5) confirms it is at best
+weakly identifiable. Retaining it rather than deleting it keeps continuity with
+the pre-audit experiments and provides a built-in *negative control* for the
+probing analysis — a parameter that is randomized but should *not* be
+decodable, against which the genuine decodability of mass and actuator strength
+can be calibrated.
 
 **Within-episode variation.** A **mid-episode disturbance** fires at a random
 step in $[120,220]$ (2.4–4.4 s), multiplying mass by $\in[0.9,1.3]$, friction
