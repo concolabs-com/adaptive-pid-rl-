@@ -193,13 +193,23 @@ indistinguishable (Table 5.2): 100% success at every $k$, and settling within
 *Table 5.2 — Stack-depth ablation (blind, seed 7).*
 
 Even $k=1$ — a near-memoryless policy — succeeds with settling matching $k=20$.
-The explanation follows from §2.4.4: the instantaneous observation already
-exposes the identifiable dynamics. Actuator strength is readable from the cruise
-velocity in a single frame, and the previous gain action is part of the
-observation, giving a one-step feedback channel. Temporal depth is therefore
-*not* the load-bearing mechanism for this task. (Caveat: because the previous
-action is in the observation, $k=1$ is not strictly Markov-blind; a fully
-memoryless variant would drop it.)
+The explanation follows directly from the identifiability analysis of §2.4.5.
+The most discriminative parameter, actuator strength, is identifiable from the
+*cruise velocity*, which is a single-frame observation: a memoryless policy
+reading the current velocity already has the dominant information. Mass requires
+the acceleration *transient* — strictly a multi-step signal — but its effect on
+this self-stabilizing plant is small (it shifts settling by a few percent,
+§5.7), so failing to capture it costs little. And the previous gain action is
+part of the observation, supplying a one-step feedback channel that substitutes
+for some of what a longer history would provide. The flat ablation is therefore
+not a surprise but a *prediction* of the identifiability structure: when the
+load-bearing parameter is instantaneously observable and the memory-requiring
+parameter is dynamically weak, stacking depth should not matter — and it does
+not. A plant whose dominant parameter were revealed only by an extended
+manoeuvre (§7.2) would be expected to show the opposite, and is the natural test
+of this explanation. (Caveat: because the previous action is in the observation,
+$k=1$ is not strictly Markov-blind; a fully memoryless variant would drop it,
+and is the clean control this prediction invites.)
 
 ### 5.4.2 Recurrence is the fastest variant
 
