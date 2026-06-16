@@ -336,12 +336,27 @@ during operation. Online approaches typically assume either a known plant model
 or direct measurement of the scheduling variable (the classical gain-scheduling
 requirement). [CITATION PASS: insert 2–3 concrete online-RL-PID references with
 their assumptions, replacing the two placeholders from the original §2.5; verify
-the Shi et al. venue.] The gap this thesis fills: **online gain scheduling
+the Shi et al. venue.]
+
+Three gaps recur across that prior work and frame this thesis's contribution.
+First, **observability**: most online methods assume the scheduling variable is
+measured; the harder and more realistic case — the variable is *hidden* and must
+be inferred from closed-loop behaviour — is comparatively unstudied for PID
+scheduling specifically. Second, **mechanism**: papers that do achieve adaptive
+behaviour rarely ask *what* the policy infers or *how much* memory it needs;
+success curves are reported, but the representation is left a black box. Third,
+**fair baselining**: learned controllers are frequently compared against a
+naïve fixed PID rather than against a properly anti-windup-equipped classical
+loop or a fairly configured adaptive controller, which inflates the apparent
+learning advantage. This thesis targets all three: **online gain scheduling
 where the scheduling variables (mass, friction, actuator strength) are hidden,
 must be inferred from closed-loop behaviour, and can shift mid-episode** —
-studied as a HiP-MDP, with a controlled teacher–student comparison, a
-mechanistic probing analysis, a fair anti-windup baseline, and a cross-plant
-transfer test.
+studied as a HiP-MDP, with a controlled teacher–student comparison (observability),
+a stack-depth/recurrence ablation and a representation-probing analysis
+(mechanism), a textbook anti-windup PID and a feasible-reference-model MRAC
+(fair baselining), and a second, unstable plant (generality). The audit that
+corrects an earlier, artifact-driven version of these comparisons (Chapters 5–6)
+is itself a methodological response to the third gap.
 
 [^astrom1995]: Åström, K. J. and Hägglund, T. (1995). *PID Controllers: Theory, Design, and Tuning*, 2nd ed. ISA.
 [^astrom1995adaptive]: Åström, K. J. and Wittenmark, B. (1995). *Adaptive Control*, 2nd ed. Addison-Wesley.

@@ -52,6 +52,20 @@ form, never measures the hidden parameters; it must infer whatever it needs
 from the closed-loop trajectory and act on that inference through the gains of
 an ordinary PID loop.
 
+The choice to have RL *schedule a PID loop* rather than *replace it* with a
+learned end-to-end controller is deliberate and worth stating at the outset. A
+learned policy emitting raw torque would be a black box that a control engineer
+cannot inspect, certify, or fall back from; a policy that sets $K_p, K_i, K_d$
+leaves a familiar, analyzable controller in the loop and confines the learned
+component to a bounded, interpretable role. It also keeps the comparison honest:
+the classical baselines (fixed PID, anti-windup PID, MRAC) and the learned
+agents all act through the *same* PID structure and the *same* gain ranges, so
+any difference is attributable to how the gains are chosen, not to a change of
+controller class. The learned part is thus a *supervisor* on a classical loop —
+the architecture most likely to be acceptable in the industrial settings that
+motivate the problem, and the one that makes "what did the agent learn?" a
+question with a readable answer (Chapter 5's gain and probing analyses).
+
 ## 1.2 Problem framing: a hidden-parameter MDP
 
 The setting is naturally formalized as a **hidden-parameter Markov decision
