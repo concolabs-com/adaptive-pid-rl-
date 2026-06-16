@@ -27,18 +27,33 @@ derivative term anticipates, damping oscillation. In the Laplace domain the
 controller is $C(s) = K_p + K_i/s + K_d s$, and the closed loop $C(s)P(s)$
 around a plant $P(s)$ has dynamics that the gains shape directly.
 
-Tuning chooses the gains. Ziegler–Nichols rules set them from the ultimate
-gain and period at the stability limit; the SIMC rules of Skogestad derive PI/
-PID gains from a first-order-plus-dead-time (FOPDT) fit
-$P(s) = k\,e^{-\theta s}/(\tau s + 1)$ via internal-model-control reasoning,
-giving e.g. $K_p = \tau / (k(\tau_c + \theta))$ for a closed-loop time constant
-$\tau_c$. These methods share a defining assumption: the plant parameters
-$(k, \tau, \theta)$ are fixed and known. A gain set tuned for one $(k,\tau,
-\theta)$ is optimal only near that operating point. When the plant changes —
-the inertia $k$ with payload, the effective $\tau$ with actuator strength — the
-fixed gains are no longer matched to it, and performance degrades. This is the
-limitation the thesis addresses: not how to tune PID for one plant, but how to
-re-tune it online for a plant drawn from a hidden distribution.
+Tuning chooses the gains, and the major methods illustrate how much plant
+knowledge that requires. **Ziegler–Nichols** drives the loop to its stability
+limit, records the ultimate gain $K_u$ and oscillation period $T_u$, and reads
+the gains from a table ($K_p = 0.6K_u$, $K_i = 1.2K_u/T_u$, $K_d =
+0.075K_uT_u$ for classic PID); it needs no model but does need to push the real
+plant to sustained oscillation, often unacceptable, and yields aggressive,
+oscillation-prone loops. **Internal model control** and the **SIMC** rules of
+Skogestad instead start from a first-order-plus-dead-time fit
+$P(s) = k\,e^{-\theta s}/(\tau s + 1)$ and choose gains to cancel the plant pole
+against a desired closed-loop time constant $\tau_c$, giving (for a PI loop)
+$K_p = \tau/\big(k(\tau_c+\theta)\big)$ and $K_i = K_p/\min(\tau, 4(\tau_c+
+\theta))$, with $\tau_c$ the single tuning knob trading speed against
+robustness. The Stage-1 development of this project used exactly this route — a
+step-response FOPDT identification feeding SIMC gains — to obtain the base gains
+$K_p=1.8, K_i=0.7$ around which the RL agent later schedules.
+
+All of these share a defining assumption: the plant parameters $(k, \tau,
+\theta)$ are **fixed and known** at tuning time. A gain set derived for one
+$(k,\tau,\theta)$ is optimal only near that operating point; the IMC pole-
+cancellation that makes SIMC clean is exact only when the model matches the
+plant. When the plant changes — inertia $k$ with payload, effective $\tau$ with
+actuator strength — the cancellation degrades and the loop is mistuned in a
+direction the designer did not choose. The classical fix, gain scheduling
+(§2.3), restores matching *if* the changing parameter can be measured and the
+schedule was built in advance. This thesis addresses the case those assumptions
+exclude: not how to tune PID for one known plant, but how to re-tune it online
+for a plant drawn from a hidden, unmeasured distribution.
 
 ## 2.2 Integral Windup and Anti-Windup Compensation
 

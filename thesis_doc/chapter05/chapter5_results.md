@@ -57,13 +57,39 @@ landscape (§5.4.2).
 
 Both the Context-Aware Agent and the Blind Agent achieve **100% hold success on
 all eight static scenarios across all five seeds, with zero overshoot** — and
-the same under the dynamic (mid-episode disturbance) protocol. Success is
-retained on the out-of-distribution scenarios: OOD Ultra Heavy (35 kg, 1.75×
-the training ceiling), OOD Weak Motor (actuator 0.45, below the training floor
-of 0.6), and OOD Heavy Weak (combined). RL gain scheduling is therefore a
-feasible controller for this HiP-MDP, generalizing beyond the training support
-on each axis. The interesting question is no longer *whether* the agents
-control the plant but *how well* and *by what mechanism* — RQ2–RQ4.
+the same under the dynamic (mid-episode disturbance) protocol. The hold
+criterion is strict (within ±0.05 m for 25 consecutive control steps, i.e.
+0.5 s of sustained accuracy), so "success" here is not a loose fly-by but a
+held, settled stop; combined with zero overshoot across every scenario and
+seed, this says the learned policies do not merely reach the target but arrest
+cleanly without the windup transient that defeats a naive PID (§5.6). The
+across-seed consistency (no failures in $5\times 8\times 10 = 400$ static
+episodes per agent) further indicates the result is a property of the training
+protocol, not a lucky initialization.
+
+The generalization is the more pointed claim. Success is retained on every
+**out-of-distribution** scenario: OOD Ultra Heavy (35 kg, 1.75× the training
+ceiling of 20 kg), OOD Weak Motor (actuator 0.45, below the training floor of
+0.6 — the single hardest in-isolation condition), and OOD Heavy Weak (an
+above-range mass *combined* with a below-range actuator). That failures do not
+*compound* off-distribution — the combined-OOD corner is still solved — is
+evidence the policies learned something closer to a continuous response over
+the parameter space than a lookup memorized at the training points. The blind
+agent achieving this without ever observing the parameters is the first hint of
+the implicit-identification mechanism that RQ4 makes explicit.
+
+Two honest qualifications attach even to this clean RQ1 result. First, the car
+is *self-stabilizing*: it does not run away if the gains are imperfect, only
+settles slowly, so 100% success is a relatively low bar that the saturating
+metric cannot resolve further — which is precisely why settling time (RQ2) and
+the unstable pendulum (§5.10) are needed to find daylight between controllers.
+Second, "out-of-distribution" here means outside the *training* ranges but still
+within the regime where the actuator can physically complete the task; the
+shock probe (§5.8) and the pendulum's extreme corner (§5.10) locate the genuine
+edge, where no controller — learned or classical — succeeds. With those
+qualifications, RQ1 is settled affirmatively: the interesting questions are no
+longer *whether* the agents control the plant but *how well*, *at what cost*,
+and *by what mechanism* — RQ2–RQ4.
 
 ## 5.3 RQ2 — Privileged Context vs Inference
 
