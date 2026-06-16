@@ -57,6 +57,22 @@ went unnoticed originally (the success rates looked correct).
 
 ## 4.2 Scenario Suite
 
+The scenario suite is designed, not arbitrary: each row isolates a specific
+question about generalization. The first five sit inside the training
+distribution and probe different *combinations* of the axes — a nominal anchor,
+a fast plant (light + strong motor) and a slow plant (heavy + weak motor) to
+span the discriminating actuator axis, and the two mass edges (heavy-slippery,
+light-grippy) retained from the original design to confirm that the friction
+axis is inert (these two should, and do, behave like their mass-only
+equivalents). The last three are deliberately **out-of-distribution**, one per
+extrapolation direction: OOD Ultra Heavy pushes mass to 1.75× the training
+ceiling, OOD Weak Motor pushes the actuator below the training floor (the
+single hardest in-isolation axis), and OOD Heavy Weak combines an above-range
+mass with a below-range actuator to test whether failures *compound* off-
+distribution. Reporting these separately (never pooled) lets a reader see
+exactly where, if anywhere, the learned policies break — and they do not, which
+is the substance of the RQ1 generalization claim.
+
 Eight static scenarios span the three dynamics axes, including out-of-
 distribution (OOD) conditions beyond the training ranges:
 

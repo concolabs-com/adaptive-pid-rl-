@@ -371,6 +371,27 @@ physical authority**, because no choice of gains compensates for missing torque.
 The learned agents' value is thus per-episode *initial* adaptation, not
 transient shock rejection — a clean and honest scientific boundary.
 
+The trajectory traces (Figure 5.x) make the two regimes legible. Under the
+**mass** shock the position curves of all three controllers kink at the shock
+step and then re-converge to the target: the heavier vehicle decelerates more
+slowly, but the actuator still has the authority to stop it, so every controller
+eventually holds. The context agent's $K_d$ trace steps up promptly when the
+mass-scale input jumps; the blind agent's $K_d$ rises more gradually as the
+heavier inertia reveals itself through the trajectory — the visual signature of
+the 2.8 s re-inference lag, and a second, independent confirmation (alongside
+the RQ4 probe) that the blind agent identifies online rather than reacting
+reflexively. Under the **actuator** shock the picture is qualitatively
+different and identical across controllers: the velocity simply saturates at the
+new, lower $v_{\max}$, the position ramps toward the target at half the previous
+rate, and most episodes time out before completing the 25-step hold — no $K_d$
+trace, however aggressive, changes the outcome, because the missing quantity is
+torque, not gain. This is the angular-free analogue of the pendulum's
+extreme-OOD corner (§5.10): at the authority ceiling, knowing or inferring the
+parameter is irrelevant. Stating this boundary explicitly is important for
+honesty — it bounds the claim "RL adapts" to *initial-condition* adaptation and
+forecloses an overclaim about disturbance rejection that the (corrected,
+mid-approach) disturbance timing might otherwise have invited.
+
 ## 5.9 Learned Gain Regimes
 
 Examining the scheduled gains, the teacher and student converge to two
