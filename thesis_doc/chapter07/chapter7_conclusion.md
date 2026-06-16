@@ -8,6 +8,18 @@ teacher–student comparison of a context-aware agent against a from-scratch
 blind agent, on a wheeled vehicle and an inverted pendulum, against fair
 classical baselines.
 
+The overarching question posed in Chapter 1 was whether a model-free agent can
+learn to schedule PID gains for a plant whose physics are hidden, and what it
+costs to infer those physics rather than be told them. The answer is a
+qualified yes with a precise account of the qualification. An agent can learn
+the task and generalize beyond its training distribution; inferring the hidden
+parameters rather than observing them costs little, because on this plant the
+parameters are largely exposed instantaneously; and the learned controller's
+advantage over classical control is real but *narrow* — it is an advantage in
+per-episode adaptation to unknown dynamics, not in any of the things (windup
+rejection, disturbance recovery) a practitioner might first assume. The four
+research questions sharpen this into specific, evidenced claims.
+
 **RQ1 (feasibility).** Learned gain scheduling reliably controls the plant
 across a wide range of unknown, randomized dynamics, with 100% hold success
 across all scenarios and seeds and generalization to out-of-distribution mass
@@ -47,34 +59,63 @@ adaptive controllers are benchmarked.
 
 ## 7.2 Future Work
 
-**Width-matched memory ablation.** Resolve the RQ3b confound by comparing the
-GRU against an MLP of equal parameter count, isolating recurrence from capacity.
+Six directions follow directly from the limitations (§6.3) and the threats to
+validity (§6.5); they are ordered roughly by how cheaply they would strengthen
+the central claims.
 
-**A plant where identification is hard.** The blindness penalty was small
-because identification here is easy and largely instantaneous. A plant with a
-slowly-revealed or weakly-excited hidden parameter (e.g. viscous/slip-dependent
-friction, or a delayed actuator fault) would stress implicit identification and
-is the natural setting to see context matter more — and to make the third
-randomization axis meaningful.
+**Width-matched memory ablation.** The clearest immediate gap is the RQ3b
+recurrence-versus-capacity confound: the GRU (128 hidden units) beat the
+frame-stacking MLP (2×64), but the comparison does not separate the benefit of
+recurrent state from the benefit of extra parameters. Re-running the GRU
+against an MLP of matched parameter count — and, symmetrically, a frame-stacking
+MLP widened to the GRU's capacity — would isolate which factor carries the
+speed advantage. This is a one-experiment fix and would settle whether
+"recurrence helps" is a claim the thesis can make.
 
-**Approach-phase gain scheduling.** Characterize the gains during the approach
-and braking phases, where scheduling (as opposed to the near-invariant hold-
-phase operating point) actually occurs, to describe what the learned schedule
-does.
+**A plant where identification is hard.** The small blindness penalty (RQ2) and
+the flat stack-depth curve (RQ3) both trace to the same cause: on this plant the
+hidden parameters are *easy* to identify, exposed almost instantaneously by
+velocity and the previous gains. The natural way to make the teacher–student
+gap large — and to make implicit identification genuinely difficult — is a plant
+where a parameter is revealed only slowly or weakly: viscous or slip-dependent
+friction (which would also make the inert third axis meaningful, addressing L1),
+a delayed or intermittent actuator fault, or a parameter that only manifests
+under specific manoeuvres. The probing methodology of RQ4 transfers directly and
+would predict, before training, which parameters a blind agent *can* recover.
 
-**Distillation and explicit context inference.** Compare the from-scratch blind
-student against an RMA-style distilled student and against an explicit context
-encoder (PEARL/UP-OSI), to separate the cost of blindness from the benefit of a
-particular inference scheme.
+**Approach-phase gain scheduling.** The gain analysis (§5.9) examined the hold
+phase and found near-invariant gains — a robust operating point, not a steep
+schedule. But scheduling, if it exists, lives in the approach and braking
+phases where the controller actively fights the dynamics. Characterizing the
+gain trajectories there (phase-aligned across episodes, regressed against the
+hidden parameter) would either reveal a genuine schedule the hold-phase analysis
+missed or confirm that the learned policy is fundamentally a robust regulator —
+either outcome sharpens the thesis's most hedged claim.
 
-**Broader transfer and more seeds.** Extend the pendulum study to more plants
-and seeds, and add bootstrap-backed significance throughout, to strengthen the
-generality and statistical claims.
+**Distillation and explicit context inference.** The blind student here is
+trained from scratch, which isolates the *observation regime* but conflates it
+with the *training scheme*. Comparing against an RMA-style student distilled
+from the teacher's latent embedding, and against an explicit context encoder
+(PEARL, UP-OSI) that regresses the parameters, would separate the cost of
+blindness from the benefit of a particular inference architecture — and would
+test whether distillation closes even the small gap measured here.
 
-**Toward hardware.** The sim-to-real gap is unaddressed here. The integral-reset
-finding suggests the first step is an honest sim-to-sim audit — verifying that
-no simulation convenience is carrying the result — before any hardware transfer
-is attempted.
+**Broader transfer, more seeds, and powered statistics.** The pendulum is a
+two-seed transfer *demonstration*; promoting it to a second full study (five
+seeds, the complete scenario suite, bootstrap-backed significance) and adding a
+third, structurally different plant would turn the generality claim from
+suggestive to demonstrated. The same five-to-more-seeds increase on the car
+would tighten the wide RQ2 confidence intervals enough to state effect sizes,
+not just directions.
+
+**Toward hardware.** The sim-to-real gap is unaddressed by design (§1.7), and
+the integral-reset episode is a pointed reminder that even simulation
+conveniences can carry a result. The responsible first step is therefore not a
+hardware port but an honest *sim-to-sim* audit: retrain without every
+task-aware aid, verify the policy still works when no convenience is doing the
+hard part, and only then characterize the domain gap to a physical vehicle.
+This ordering — audit the benchmark, then transfer — is the practical
+expression of the thesis's methodological contribution.
 
 ## 7.3 Closing Remark
 

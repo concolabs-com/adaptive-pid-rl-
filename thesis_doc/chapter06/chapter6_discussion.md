@@ -134,6 +134,30 @@ are identifiable enough, that per-episode adaptation buys real margin. Matching
 the method to that regime, rather than asserting a blanket advantage over PID,
 is the practical takeaway.
 
+It is worth laying the four controllers studied here on a single axis of
+*capability vs cost*, because the honest comparison is more nuanced than
+"learned beats classical". **Fixed PID** is the cheapest — no model, no
+training, no inference — and is adequate whenever the operating point is known
+and roughly constant; its only failure here was windup, and that is not really
+a fixed-PID failure but a missing-component one. **Anti-windup PID** adds two
+lines and removes the windup failure entirely, at no training cost and with full
+interpretability; on a self-stabilizing, fixed-parameter plant it is the right
+answer, and the thesis says so plainly. **MRAC** is the classical attempt at the
+*adaptive* problem this thesis targets, and its failure (even when fairly
+configured) is informative: model-reference adaptation needs a usable
+sensitivity signal, which a saturated nonlinear plant does not provide. That
+gap — adaptive control without a reliable model or sensitivity — is exactly
+where the **learned controllers** earn their keep: they estimate what to do from
+returns, sidestepping the sensitivity assumption, and they commit to matched
+gains per episode. The cost is training, opacity, and (unaddressed here) the
+sim-to-real gap. The decision rule that falls out is therefore: use the simplest
+controller whose failure mode you do not face — fixed or anti-windup PID for
+known or windup-prone but stable plants; reach for learned scheduling only when
+the dynamics are *both* unknown/varying *and* consequential enough (unstable,
+tightly toleranced) that a fixed compromise is unsafe, and classical adaptation
+is ruled out by the plant's nonlinearity or lack of a model. The pendulum is the
+archetype of that corner; the self-stabilizing car, tellingly, is not.
+
 ## 6.5 Threats to Validity
 
 It is worth stating explicitly which conclusions could still be wrong and why,
