@@ -186,6 +186,28 @@ Table 3.1 (full list in Appendix A).
 
 *Table 3.1 — PPO hyperparameters (car).* Training seeds: 7, 21, 42, 84, 123.
 
+The architecture is deliberately **small and standard**. The 2×64 Tanh trunk is
+the canonical continuous-control MLP; nothing about the gain-scheduling task
+calls for more capacity, and a small network keeps training fast enough to run
+five seeds plus ablations on a laptop CPU. The action is a 3-dimensional
+diagonal Gaussian whose mean is the network output and whose log-standard-
+deviation is a learned state-independent parameter vector; the mean is
+tanh-squashed to $[-1,1]$ to respect the action bounds, and at evaluation the
+policy is made deterministic by taking the mean. Separate (non-shared) actor and
+critic trunks are used because the value function under the heavily shaped
+reward has a very different scale and curvature from the policy, and sharing
+features was found to couple their optimization unhelpfully. The choice of
+**frame stacking** ($k=10$, a 0.2 s window) over recurrence as the *default*
+memory is itself a deliberate, testable decision: a fixed window turns the POMDP
+into an approximate MDP on a fixed-size input, is trivially parallelizable, and
+trains far faster than backpropagation through time — and whether the extra
+machinery of recurrence is even warranted is precisely what the RQ3 ablation
+(§5.4) measures rather than assumes. The context and blind agents differ in
+*exactly one respect* — the presence of the three context dimensions in the
+observation — so that any performance gap is attributable to the observation
+regime and not to a confounding architectural difference; this single-variable
+discipline is what licenses the RQ2 interpretation.
+
 ## 3.5 Curriculum Learning
 
 Target distance grows over four equal phases of training:
