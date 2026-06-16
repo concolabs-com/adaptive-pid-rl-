@@ -53,6 +53,10 @@ fell into when its exploding value loss was read as a fundamental failure of
 recurrence rather than an artifact of that protocol's hard-termination
 landscape (§5.4.2).
 
+![Training return and value loss vs PPO update for the context and blind agents (seed 7); dotted lines mark the four curriculum-phase boundaries.](../figures/fig5_training_curves.png)
+
+*Figure 5.0 — Training dynamics over 1M steps, with curriculum-phase boundaries (dotted). Return rises within each phase and dips at boundaries as the target range expands.*
+
 ## 5.2 RQ1 — Feasibility
 
 Both the Context-Aware Agent and the Blind Agent achieve **100% hold success on
@@ -111,6 +115,10 @@ teacher and student. Both succeed everywhere; the teacher is faster, by a
 | OOD Weak Motor | 26.58 ± 1.40 | 26.91 ± 1.37 | +1.2% |
 
 *Table 5.1 — Settling time, teacher vs student (5 seeds, protocol v2).*
+
+![Context vs blind settling by scenario (5 seeds, mean ± sd). The teacher leads on every scenario, by a margin that shrinks from the fast scenarios (left) to the actuator-limited ones (right).](../figures/fig5_rq2_settling.png)
+
+*Figure 5.1 — RQ2: context-aware vs blind settling time across the eight scenarios.*
 
 The advantage is **largest when the plant is fast** (Light Strong Motor,
 +12.8%) and **vanishes when the plant is actuator-limited** (OOD Weak Motor,
@@ -177,6 +185,10 @@ simply travel time" — the gap between it and the learned curves is the cost th
 learned conservatism (higher $K_d$, hedged braking) pays for robustness, and it
 is largest exactly where fast settling is achievable.
 
+![Actuator sweep: settling, overshoot, and success vs actuator strength for fixed PID, blind, and context controllers; green band is the training range.](../figures/fig5_actuator_sweep.png)
+
+*Figure 5.2 — Actuator-strength sweep. Settling is monotone-convex (∝ 1/κ), the teacher leads throughout with shrinking margin, and success holds at 100% across both out-of-distribution ends.*
+
 ## 5.4 RQ3 — How Much Memory Does Inference Need?
 
 ### 5.4.1 Frame-stack depth is nearly irrelevant
@@ -210,6 +222,10 @@ manoeuvre (§7.2) would be expected to show the opposite, and is the natural tes
 of this explanation. (Caveat: because the previous action is in the observation,
 $k=1$ is not strictly Markov-blind; a fully memoryless variant would drop it,
 and is the clean control this prediction invites.)
+
+![Stack-depth ablation: settling vs frame-stack depth k for three scenarios; the curves are flat, with k=1 matching k=20.](../figures/fig5_stack_ablation.png)
+
+*Figure 5.3 — RQ3 stack-depth ablation. Settling is flat across k ∈ {1,3,5,10,20} on every scenario; temporal depth is not the load-bearing mechanism.*
 
 ### 5.4.2 Recurrence is the fastest variant
 
@@ -273,6 +289,10 @@ closed-loop trajectory excites, in the phase where each becomes physically
 observable — direct evidence that the agent performs implicit system
 identification rather than merely executing a robust fixed policy.
 
+![Probe out-of-fold R² for mass, actuator, and friction vs episode time, decoded from the blind policy's representation.](../figures/fig5_probe_r2.png)
+
+*Figure 5.4 — RQ4 double dissociation. Mass is decodable during acceleration (early, then decays); actuator strength during cruise (rises and sustains); friction never above chance.*
+
 ## 5.6 Classical Baselines and the Integral-Reset Confound
 
 ### 5.6.1 The aid equalizes naive PID
@@ -329,6 +349,10 @@ learned controller is unnecessary, and the no-reset environment is therefore
 the wrong place to look for an RL advantage — the right place is varying,
 unidentified, or unstable dynamics (§5.10), not a fixed-parameter windup task.
 
+![No-reset environment: settling by scenario for none / clamp / back-calculation anti-windup.](../figures/fig5_antiwindup.png)
+
+*Figure 5.5 — Anti-windup in the no-reset environment. Back-calculation and conditional integration (clamp) recover clean settling where the un-protected loop (none) suffers large windup transients.*
+
 ### 5.6.3 MRAC fails fairly
 
 MRAC with a *feasible* reference model ($\tau_m\in\{10,15\}$ s, achievable at
@@ -353,6 +377,10 @@ model-reference adaptation does not solve the task even when configured
 favourably, which is precisely the gap a model-free learned policy — which
 estimates what to do from returns rather than from a presumed sensitivity sign
 — is positioned to fill.
+
+![MRAC success-rate heatmap across reference-model configurations and scenarios — uniformly 0%.](../figures/fig5_mrac.png)
+
+*Figure 5.6 — MRAC with a feasible reference model: 0% success across every (τ_m, σ) configuration and scenario.*
 
 ## 5.7 Task Discriminativeness: Why the Actuator Axis Matters
 
@@ -385,6 +413,10 @@ of the blind agent's — the "context advantage" evaporates when the agent is
 actually shown its context in-distribution. Plotting both against the blind
 baseline on one axis makes the artifact impossible to miss, and is the figure
 that originally triggered the audit of the static-evaluation path.
+
+![Mass sweep vs actuator sweep: fixed-PID settling is nearly flat across a 10× mass range but steep across actuator strength.](../figures/fig5_mass_sweep.png)
+
+*Figure 5.7 — Mass sweep (settling and success vs mass). Settling moves ~11% over a 10× mass range — the flat axis that motivated adding the discriminative actuator axis (cf. Figure 5.2).*
 
 ## 5.8 Mid-Approach Shock: The Boundary of Adaptation
 
@@ -463,6 +495,10 @@ that the learned controllers are closer to *well-chosen robust regulators* than
 to *steep gain schedulers* — a more modest and more accurate description than
 "the agent learns a gain schedule", and one the data supports directly.
 
+![Steady-state Kp, Ki, Kd vs actuator strength for context and blind agents — two flat, offset operating points.](../figures/fig5_gain_regimes.png)
+
+*Figure 5.8 — Learned gain regimes vs actuator strength (mass = 10 kg). The teacher (low-Kp/high-Kd) and student (the reverse) occupy two distinct but near-flat operating points — robust regulators rather than steep schedules.*
+
 ## 5.10 Transfer to an Unstable Plant: Inverted Pendulum
 
 On the inverted-pendulum balance task with randomized pole mass and actuator
@@ -510,6 +546,10 @@ full quantitative study. With those caveats, it is the clearest evidence in the
 thesis that learned gain scheduling adds real value over fixed gains when
 adaptation genuinely matters, and that the contribution is not an artifact of
 the wheeled-vehicle plant.
+
+![Pendulum balance survival by scenario for fixed PID, blind, and context controllers.](../figures/fig5_pendulum_survival.png)
+
+*Figure 5.9 — Pendulum transfer. Fixed gains fail the compound hard corners (Heavy-Pole-Weak-Gear, OOD Weak-Gear); the learned agents rescue them — the largest RL-over-fixed advantage in the thesis.*
 
 ## 5.11 Summary
 

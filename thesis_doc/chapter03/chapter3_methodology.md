@@ -46,6 +46,10 @@ $\Delta t = 0.02$ s, not the physics timestep $0.002$ s. Using the physics
 timestep understates all times by exactly 10× — an error identified in the
 audit (Chapter 5) and corrected throughout.
 
+![Two-loop control architecture: the RL policy outputs gain multipliers at 50 Hz; the gain map produces Kp/Ki/Kd; the PID computes the motor command at 500 Hz; state (plus context for the teacher) feeds back.](figures/fig3_1_control_loop.png)
+
+*Figure 3.1 — Two-loop control architecture shared by all controllers.*
+
 ## 3.2 Primary Plant: Two-Wheeled Vehicle
 
 The primary plant is a two-wheeled MuJoCo vehicle driven by two wheel motors
@@ -141,6 +145,10 @@ stop, using only soft penalties, and is the `thesis_v4_cliff`/`thesis_v6_hipmdp`
 reward; the dropped variants are documented because their failure is itself
 informative about reward design on input-saturated plants.
 
+![Car task schematic: start at x=0, drive through a reduced-friction patch (x∈[1.5,2.4] m) to the 5 m target, holding within ±0.05 m; the braking zone is |error|<2 m.](figures/fig3_2_environment.png)
+
+*Figure 3.2 — The car position-control task and its features (friction patch, braking zone, hold band).*
+
 ## 3.3 Domain Randomization — Three Hidden Axes
 
 Each episode samples a hidden parameter vector $\psi = (m,\mu,\kappa)$:
@@ -223,6 +231,10 @@ observation — so that any performance gap is attributable to the observation
 regime and not to a confounding architectural difference; this single-variable
 discipline is what licenses the RQ2 interpretation.
 
+![Actor–critic MLP: stacked observation (90-dim teacher / 60-dim student) → two 64-unit Tanh layers → 3-dim Gaussian actor head and scalar critic head; the GRU variant replaces the trunk with a 128-unit GRU.](figures/fig3_4_network.png)
+
+*Figure 3.4 — Policy network architecture (MLP default; GRU variant for RQ3b).*
+
 ## 3.5 Curriculum Learning
 
 Target distance grows over four equal phases of training:
@@ -237,6 +249,10 @@ Target distance grows over four equal phases of training:
 Short targets first let the agent learn the held-stop behaviour before facing
 the long approaches where windup pressure is greatest. The disturbance
 magnitude is held fixed across phases.
+
+![Curriculum schedule: target-distance range grows 1–3 → 1–5 → 1–7 → 1–10 m over four equal phases across 1M training steps.](figures/fig3_3_curriculum.png)
+
+*Figure 3.3 — Four-phase distance curriculum.*
 
 ## 3.6 Classical Baselines (Same Action Space)
 
