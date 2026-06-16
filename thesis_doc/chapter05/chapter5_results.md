@@ -98,12 +98,34 @@ consistent across seeds; on the fast scenarios the seed-level Welch test
 separates the two (small-to-medium Cliff's δ), while on the actuator-limited
 scenarios the difference is within noise.
 
+**Statistical treatment.** Each cell of Table 5.1 aggregates 50 episodes (10
+per seed × 5 seeds) under protocol v2; the reported ± is the standard deviation
+of the five per-seed means, and the headline penalty is the ratio of the
+seed-level means. Significance is assessed at the seed level — the unit at
+which the policies are independent — with Welch's t-test (unequal variances,
+$n_s=5$ per group) cross-checked by Mann–Whitney U where the settling
+distribution is right-skewed; effect size is Cliff's δ, and the family of eight
+scenario comparisons is corrected with Holm–Bonferroni. On the fast scenarios
+(Light Strong Motor, Light and Grippy) the teacher–student difference survives
+correction with a small-to-medium effect ($|\delta|\approx0.3$–$0.5$); on the
+actuator-limited scenarios (OOD Weak Motor, OOD Heavy Weak) the difference is
+within seed noise ($|\delta|<0.15$, adjusted $p>0.1$) and no advantage is
+claimed there. With only five seeds the seed-level bootstrap confidence
+intervals are wide, and the chapter is careful to read the result as a
+*trend* — context helps, conditionally — rather than a precise effect size.
+
 This result **replaces** the original draft's "+14.5% on every scenario", which
 was an artifact: the v1 static evaluation never wrote the sampled physics to
 the context observation, so the teacher always saw a constant $(1,1)$ context —
-roughly 11× outside its training context distribution. Re-evaluating the old
-teacher with the *true* context applied (§5.7) makes its advantage collapse to
-near the blind agent's level, confirming the artifact.
+roughly 11× outside its training context distribution (the training context,
+normalized by the XML-nominal mass of ≈0.43 kg, spans mass-scale ≈ 11.6–46.5).
+Re-evaluating the old teacher with the *true* context applied (§5.7) makes its
+advantage collapse to near the blind agent's level, while feeding it the broken
+$(1,1)$ context reproduces the original inflated numbers — a clean
+demonstration that the "advantage" was an out-of-distribution observation
+artifact, not a benefit of context. That the dynamic evaluation (which always
+pushed context correctly through the randomization wrapper) was *not* affected
+is what localized the bug to the static-evaluation path.
 
 ### 5.3.2 Actuator sweep
 
@@ -161,10 +183,26 @@ earlier failure in the protocol rather than in recurrence per se.
 
 ## 5.5 RQ4 — What the Blind Agent Encodes
 
-To test whether the blind policy *represents* the hidden parameters, ridge
-probes were trained to predict each parameter from the policy's penultimate
-activations, cross-validated with grouping by episode (no within-episode
-leakage), and scored by $R^2$ as a function of episode phase. The result is a
+**Probe methodology.** A controller that merely *tolerates* unknown dynamics
+(a single robust policy) and one that *identifies* them (conditioning on an
+inferred parameter) can be behaviourally similar yet are mechanistically
+distinct. To separate them, the blind agent is rolled out over 80 episodes with
+the hidden parameters sampled per episode, and at every control step two feature
+vectors are recorded: the flattened stacked observation (the policy *input*) and
+the activations of the policy network's penultimate layer (what the policy
+*encodes*). A linear ridge probe is then trained to regress each true hidden
+parameter from each feature vector. Crucially, cross-validation uses
+**GroupKFold grouped by episode**, so no step from a training episode appears in
+the corresponding test fold — a parameter is constant within an episode, and
+without episode-grouping a probe could "decode" it by memorizing episode
+identity rather than reading dynamics. The probe is deliberately *linear*: a
+high $R^2$ then means the parameter is encoded in a directly readable
+(linearly separable) form, not merely recoverable by an arbitrarily powerful
+decoder. Scores are reported as out-of-fold $R^2$ within episode-time buckets,
+giving decodability as a function of phase.
+
+To test whether the blind policy *represents* the hidden parameters, these
+probes were scored by $R^2$ as a function of episode phase. The result is a
 clean **double dissociation** matching the plant physics (Figure 5.x):
 
 | Parameter | Decodable phase | Peak $R^2$ | In cruise |
