@@ -22,15 +22,36 @@ agent numbers are over five seeds and evaluation protocol v2 unless noted.
 ## 5.1 Training
 
 Both learned agents train stably to convergence over 1M steps on the
-`thesis_v6_hipmdp` protocol across all five seeds. Episode return improves
-through the four curriculum phases, with the expected transient dips at phase
-boundaries as the target range expands. The MLP agents complete a run in
-~15 min on CPU; the recurrent (GRU) agent takes ~75 min owing to
-backpropagation through time. Notably, the GRU's per-episode return remains
-deeply negative throughout (accumulated per-step penalties over long episodes)
-yet its *behaviour* converges to reliable control — a reminder that raw return
-under heavy shaping is a poor proxy for task success, and the reason success
-and settling, not return, are the reported metrics.
+`thesis_v6_hipmdp` protocol across all five seeds. Episode return rises
+steeply during the first curriculum phase (targets 1–3 m), where the agent
+learns the basic approach-and-hold behaviour on short, forgiving targets, then
+steps down and recovers at each subsequent phase boundary (250k, 500k, 750k
+steps) as the target range expands to 1–5, 1–7, and 1–10 m. The dips are the
+signature of curriculum transfer: a policy tuned for short approaches must
+re-learn the braking timing for longer ones, where more integral accumulates
+and the actuator-limited cruise is longer. By the end of phase four the return
+has re-stabilized, and — more importantly for a control task — the *success
+rate* on held-out evaluation targets has saturated at 100%.
+
+Three observations about the training dynamics are worth recording. First,
+across the five seeds the learning curves are qualitatively identical, with the
+phase-boundary dips occurring at the same steps and the final return spread
+narrow; the policy is not unusually sensitive to initialization. Second, the
+MLP agents complete a 1M-step run in ~15 min on CPU, whereas the recurrent
+(GRU) agent takes ~75 min — a 5× cost from backpropagation through time over
+the rollout, which is the practical price of recurrence even when it helps
+(§5.4.2). Third, and as a methodological caution, the GRU's per-episode *return*
+remains deeply negative throughout training (the long episodes accumulate many
+small per-step distance and velocity penalties before the terminal hold bonus
+is collected), and a naïve reading of the return curve alone would suggest it
+had failed to learn. Its *behaviour*, however, converges to reliable control —
+100% success, low settling. This dissociation between shaped return and task
+success is the reason this thesis reports success rate and settling time, not
+episode return, as the primary metrics, and it is the same trap that an earlier
+recurrent run under a different reward (the Stage-4 governor/cliff protocol)
+fell into when its exploding value loss was read as a fundamental failure of
+recurrence rather than an artifact of that protocol's hard-termination
+landscape (§5.4.2).
 
 ## 5.2 RQ1 — Feasibility
 

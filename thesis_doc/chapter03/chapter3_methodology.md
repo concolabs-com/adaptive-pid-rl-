@@ -44,16 +44,33 @@ torque the longitudinal dynamics are approximately
 
 $$ m\,\ddot{x} = \frac{2\,\kappa\,\tau(u)}{r_w} - \frac{2b}{r_w^2}\,\dot{x}, $$
 
-where $\kappa$ scales actuator strength and $r_w$ is the wheel radius. At
-saturated command the steady cruise speed is $v_{\max} \propto \kappa /
-b$ — **independent of mass**. With the nominal parameters $v_{\max}\approx
-0.5$ m/s. Two consequences follow and shape every result. First, settling time
-for a multi-metre drive is dominated by travel time $\approx d/v_{\max}$, so
-**mass barely affects settling** (a 10× mass change moves fixed-PID settling
-~11%, §5.x) whereas **actuator strength does** ($v_{\max}\propto\kappa$ moves
-it 3.7×). Second, the actuator saturates throughout the cruise, which is why
-integral windup (§2.2) is the dominant failure mode of a naive PID and why the
-identifiability structure of §2.4.4 holds.
+where $\kappa$ scales actuator strength and $r_w$ is the wheel radius. During
+the cruise the command saturates at $u=u_{\max}$, so the forcing term
+$F \equiv 2\kappa\tau(u_{\max})/r_w$ is constant and the equation is a linear
+first-order ODE in the velocity $v=\dot x$:
+
+$$ m\,\dot v + \frac{2b}{r_w^2}\,v = F, \qquad v(t) = v_{\max}\Big(1 - e^{-t/\tau_v}\Big), $$
+
+with **terminal speed** and **velocity time constant**
+
+$$ v_{\max} = \frac{F\,r_w^2}{2b} = \frac{\kappa\,\tau(u_{\max})\,r_w}{b}, \qquad \tau_v = \frac{m\,r_w^2}{2b}. $$
+
+Two facts fall out and shape every result. First, $v_{\max}\propto\kappa/b$ is
+**independent of mass** — mass appears only in the time constant $\tau_v$,
+i.e. in how fast the vehicle *reaches* cruise, not how fast it cruises. With the
+nominal parameters $v_{\max}\approx 0.5$ m/s and $\tau_v$ on the order of a few
+hundred milliseconds, so for a multi-metre drive the constant-velocity cruise
+dominates the trip time. Settling time is therefore $\approx d/v_{\max}$ plus a
+mass-dependent transient of order $\tau_v$: a 10× mass change moves fixed-PID
+settling only ~11% (§5.7), whereas an actuator change scales $v_{\max}$
+directly and moves it 3.7×. This is the quantitative reason mass is a poor
+discriminator and actuator strength a good one — and the reason the original
+mass-only randomization (F9) could not separate controllers. Second, because
+the command saturates throughout the cruise, integral windup (§2.2) is the
+dominant failure mode of a naive PID, and the parameter that is excited in each
+phase — mass in the acceleration transient ($\tau_v\propto m$), actuator
+strength in the cruise ($v_{\max}\propto\kappa$) — is exactly what the probing
+analysis recovers (§2.4.5, §5.5).
 
 **Gain parameterization.** The policy action $a\in[-1,1]^3$ maps to gains
 around a base:

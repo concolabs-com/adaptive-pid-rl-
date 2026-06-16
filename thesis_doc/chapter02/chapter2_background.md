@@ -55,6 +55,19 @@ cruise speed) the accumulated integral exceeds the available derivative
 authority by an order of magnitude, producing the large overshoot-and-recovery
 transient analysed in Chapter 5. This phenomenon is **integral windup**.
 
+*Worked example.* For the 5 m approach with $K_i = 0.7$, at the
+actuator-limited cruise speed $v_{\max}\approx 0.5$ m/s the drive lasts
+$T\approx 10$ s with mean error $\bar e\approx 2.5$ m, so
+$I = K_i\,\bar e\,T \approx 0.7\times 2.5\times 10 = 17.5$ — already far beyond
+the actuator command range $[-1,1]$. To arrest the vehicle the derivative term
+must overcome this: $K_d|\dot e| > I$. With $K_d = 0.5$ and $|\dot e| = 0.5$
+m/s the derivative contributes only $0.25$, short of $I$ by roughly
+seventy-fold. The integrator must unwind — the vehicle overshoots, the error
+changes sign, and only after seconds of reverse integration does the loop
+recover. This matches the ~7 m overshoot and 74–93 s recovery measured for
+naive PID in the no-reset environment (§5.6), and it is exactly what
+anti-windup is designed to prevent.
+
 Industrial PID blocks therefore include **anti-windup** compensation
 [^astrom1995]. Two standard mechanisms are used here. **Back-calculation**
 drives the integral state toward consistency with the saturated output through
@@ -110,25 +123,60 @@ theorem gives $\nabla_\theta J = \mathbb{E}[\sum_t \nabla_\theta \log
 \pi_\theta(a_t|s_t)\,A^{\pi}(s_t,a_t)]$, where $A^\pi = Q^\pi - V^\pi$ is the
 advantage.
 
-### 2.4.2 PPO and GAE
+### 2.4.2 From trust regions to PPO
 
-Proximal Policy Optimization [^schulman2017] maximizes a clipped surrogate that
-discourages large policy steps. With probability ratio $r_t(\theta) =
-\pi_\theta(a_t|s_t)/\pi_{\theta_{\text{old}}}(a_t|s_t)$,
+Vanilla policy-gradient ascent is unstable: a step that is too large in
+parameter space can collapse the policy, and the on-policy data that justified
+the gradient is invalidated by the very update it induces. Trust-region policy
+optimization (TRPO) addresses this by maximizing a surrogate of the expected
+return subject to a Kullback–Leibler constraint that keeps the new policy close
+to the old. Writing the importance-sampling surrogate with the probability
+ratio $r_t(\theta) = \pi_\theta(a_t|s_t)/\pi_{\theta_{\text{old}}}(a_t|s_t)$,
+TRPO solves
 
-$$ L^{\text{CLIP}}(\theta) = \mathbb{E}_t\big[\min(r_t A_t,\ \mathrm{clip}(r_t, 1-\epsilon, 1+\epsilon)A_t)\big], $$
+$$ \max_\theta\ \mathbb{E}_t\!\big[ r_t(\theta)\,A_t \big] \quad \text{s.t.}\quad \mathbb{E}_t\!\big[ \mathrm{KL}\big(\pi_{\theta_{\text{old}}}(\cdot|s_t)\,\|\,\pi_\theta(\cdot|s_t)\big) \big] \le \delta. $$
 
-with $\epsilon = 0.2$ here. Advantages use generalized advantage estimation
-[^schulman2016],
+The constrained problem requires a conjugate-gradient step on the Fisher
+information matrix — accurate but expensive and awkward to implement. Proximal
+Policy Optimization (PPO) [^schulman2017] replaces the hard KL constraint with a
+*clipped* surrogate that removes the incentive to move the ratio outside
+$[1-\epsilon, 1+\epsilon]$:
 
-$$ A_t = \sum_{l\ge 0}(\gamma\lambda)^l \delta_{t+l}, \qquad \delta_t = r_t + \gamma V(s_{t+1}) - V(s_t), $$
+$$ L^{\text{CLIP}}(\theta) = \mathbb{E}_t\Big[\min\big(r_t(\theta) A_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\,A_t\big)\Big]. $$
 
-with $\gamma = 0.99$, $\lambda = 0.95$; $\lambda$ trades bias against variance.
-The full loss adds a value term and (optionally) an entropy bonus; networks use
-orthogonal initialization [^saxe2014]. Exact hyperparameters are in §3.x and
-Appendix A.
+The minimum makes the objective a pessimistic (lower) bound on the unclipped
+surrogate: when $A_t > 0$ the clip caps the reward for increasing $r_t$ beyond
+$1+\epsilon$, and when $A_t < 0$ it caps it for decreasing $r_t$ below
+$1-\epsilon$; in both cases, once the ratio leaves the trust band the gradient
+of that sample vanishes, so the update cannot be dominated by a few large ratio
+moves. This recovers most of TRPO's stability with first-order optimization and
+a few epochs of minibatch SGD per data batch. We use $\epsilon = 0.2$.
 
-### 2.4.3 POMDPs and hidden-parameter MDPs
+### 2.4.3 Advantage estimation (GAE)
+
+The surrogate needs an advantage estimate $A_t$. The temporal-difference
+residual $\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)$ is a one-step,
+low-variance but biased estimate of the advantage; the full Monte-Carlo return
+minus baseline is unbiased but high-variance. Generalized advantage estimation
+(GAE) [^schulman2016] interpolates between them with an exponential weighting
+parameter $\lambda$:
+
+$$ A_t^{\text{GAE}(\gamma,\lambda)} = \sum_{l\ge 0}(\gamma\lambda)^l\,\delta_{t+l}. $$
+
+At $\lambda=0$ this is the one-step TD residual (low variance, biased toward the
+value function); at $\lambda=1$ it telescopes to the discounted Monte-Carlo
+advantage $\sum_l \gamma^l r_{t+l} - V(s_t)$ (unbiased, high variance).
+Intermediate $\lambda$ trades the two; we use $\gamma=0.99$, $\lambda=0.95$, the
+standard continuous-control setting, which keeps most of the variance reduction
+while admitting only mild bias. The critic $V_\phi$ is trained by regression to
+the returns $A_t + V(s_t)$; the actor maximizes $L^{\text{CLIP}}$. The combined
+loss adds a value term (coefficient 0.5) and an optional entropy bonus
+(coefficient 0 here, since the Gaussian policy's learned log-std already
+supplies exploration), and all linear layers use orthogonal initialization
+[^saxe2014] with the standard $\sqrt 2$ gain on hidden layers and small gains on
+the policy/value heads. Exact hyperparameters are in §3.4 and Appendix A.
+
+### 2.4.4 POMDPs and hidden-parameter MDPs
 
 When the agent cannot observe the full state it faces a **partially observable
 MDP (POMDP)**: the optimal policy depends on the belief $b_t$ over hidden state
@@ -149,7 +197,7 @@ $\tilde{o}_t = (o_{t-k+1},\dots,o_t)$, as a finite-memory approximation of the
 belief. Whether $k$ steps suffice to identify $\psi$ is an empirical question —
 addressed by the stack-depth ablation (RQ3) and the probing analysis (RQ4).
 
-### 2.4.4 Identifiability
+### 2.4.5 Identifiability
 
 Not every hidden parameter is identifiable from closed-loop data. For the
 longitudinal car dynamics under wheel torque, mass enters only through
