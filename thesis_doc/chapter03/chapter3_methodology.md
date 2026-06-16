@@ -10,6 +10,21 @@ PID, and MRAC — operate in the same gain-action space. Section 3.7 describes
 the `brake_integral_reset` environment aid whose role as a confound is analysed
 in Chapter 5.
 
+The design presented here is the *outcome* of an iterative development process,
+and a brief note on that history clarifies several otherwise-arbitrary choices.
+The protocol evolved through a sequence of named presets (`thesis_v1` through
+`thesis_v6_hipmdp`) as failures were diagnosed and addressed: early versions
+used a speed governor and a hard-overshoot "cliff" termination that were later
+found to mask or starve the learned behaviour (§3.2, Appendix A.7); the
+randomization began mass-only and was found non-discriminative, prompting the
+actuator axis (§3.3); and the evaluation protocol was rebuilt (v1→v2) after the
+audit exposed the context-observation and deterministic-repeat defects (§4.1).
+The configuration documented below is the final, audited one; where a choice
+was reached by discarding an alternative, the discarded alternative is recorded
+too, because in several cases the *failure* is itself a result (a hard
+termination starving exploration, a randomization axis carrying no signal). The
+thesis treats methodology as something arrived at and audited, not handed down.
+
 ---
 
 ## 3.1 Two-Loop Control Architecture

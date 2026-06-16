@@ -168,3 +168,21 @@ evaluation pipeline and the audit log (`AUDIT_FINDINGS.md`) document the
 provenance of every reported number. Two operational interruptions (a sleep
 suspend and a transient Windows DLL-init failure) were handled with idempotent,
 resumable run scripts and did not affect results.
+
+Reproducibility was treated as a first-class concern, partly *because* the
+original results proved non-reproducible in the most basic sense — they could
+not be re-derived from the code, because the code computed settling time with
+the wrong timestep. The remediation enforces three habits. **Determinism where
+it matters:** every seed sets the Python, NumPy, and Torch generators, and the
+evaluation draws its per-episode physics and target jitter from a generator
+seeded by the episode index, so a given (seed, scenario, episode) triple is
+exactly reproducible. **Single source of truth for numbers:** every figure and
+table in Chapter 5 is generated from the CSVs the experiment scripts emit, not
+transcribed by hand, so a rerun regenerates the thesis's numbers mechanically;
+`utils/aggregate_seeds.py` is the one place cross-seed statistics are computed.
+**Idempotent, resumable runs:** each long run checks for its own output and
+skips or resumes rather than recomputing, which is what allowed the two
+interruptions to be recovered without re-running completed work. These are
+modest engineering practices, but the audit is a concrete demonstration of what
+their *absence* costs — and adopting them is part of the thesis's
+methodological argument, not incidental tooling.
