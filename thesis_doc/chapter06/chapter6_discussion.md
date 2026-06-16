@@ -6,6 +6,19 @@ conclusions, and considers practical implications.
 
 ## 6.1 Interpreting the Findings
 
+Read together, the four results tell one coherent story rather than four
+separate ones. The blind agent succeeds (RQ1) because it can *identify* the
+plant from its own trajectory (RQ4); it needs almost no explicit memory to do
+so (RQ3) because the identification is largely instantaneous on this plant; and
+because identification is easy, the *cost* of not being told the parameters is
+small (RQ2). The same chain explains the limits: where a parameter is not
+identifiable (friction) or where identification cannot help because the
+bottleneck is physical authority rather than gain choice (the actuator shock,
+the pendulum's extreme corner), the learned advantage disappears. The thread
+running through all of it is that **the learned controller's power and its
+limits both trace to the identifiability structure of the plant** — a unifying
+reading that the per-question discussion below makes precise.
+
 **Feasibility is not the interesting part (RQ1).** That both agents reach 100%
 success across a 4:1 mass range, a wide actuator range, and out-of-distribution
 conditions establishes the approach works — but the self-stabilizing car makes

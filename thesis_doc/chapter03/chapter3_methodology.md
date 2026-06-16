@@ -239,11 +239,29 @@ harness.
 
 During development the environment included a `brake_integral_reset` that zeroes
 the PID integrator on entry to the braking zone ($|e| < 2$ m). It is, in effect,
-a *task-aware* conditional integration: it consults distance-to-target rather
-than actuator saturation. It is active by default for all controllers. Its
-effect — equalizing performance by removing windup at the critical moment — is
-the confound analysed in §5.x: with it, naive and anti-windup PID are
-indistinguishable; without it, only anti-windup (or the learned agents) cope.
+a *task-aware* conditional integration: where the textbook clamping of §2.2
+consults actuator saturation (information any PID block has), this aid consults
+distance-to-target (information that presumes the controller already knows where
+the target is) — so it is a stronger, less generalizable intervention than a
+standard anti-windup, and it is active by default for every controller,
+including the classical baselines.
+
+It is documented here, in the methodology, rather than buried in the results,
+because its presence is the single most consequential design decision in the
+original experiments and its discovery reframed the entire comparison. Carried
+silently, it makes the environment quietly *easy*: it removes the windup that
+is a naive PID's only failure mode on this plant, so a correctly pre-tuned fixed
+PID looks excellent and the headline "fixed PID is fastest" becomes a statement
+about the aid rather than about non-adaptive control. The audit's response was
+not to delete it — a real braking-zone integrator reset is a legitimate, if
+task-specific, engineering choice — but to make the comparison *robust* to it:
+evaluate every controller both with and without it (§5.6), and add the standard,
+saturation-based anti-windup PID as the *fair* classical comparator that needs
+no task knowledge. With the aid active, naive and anti-windup PID are
+indistinguishable (the aid does the anti-windup's job); with it disabled, only
+the anti-windup PID — or the learned agents, at a cost — cope. Treating the aid
+as an object of study rather than a hidden convenience is the methodological
+stance the thesis argues for throughout.
 
 ## 3.8 Transfer Plant: Inverted Pendulum
 
