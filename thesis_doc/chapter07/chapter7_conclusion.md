@@ -1,29 +1,88 @@
 # Chapter 7 — Conclusion and Future Work
 
-This thesis investigated whether a domain-randomised reinforcement learning agent could learn to schedule PID gains in real time for a simulated wheeled vehicle with unknown mass and friction, and whether providing explicit physics measurements improves adaptation over blind dynamics inference from trajectory history alone. Both questions are answered with positive, well-supported results. A third finding, about the role of simulation environment design in benchmarking adaptive control, emerges from the confound analysis and constitutes a methodological contribution in its own right.
-
----
-
 ## 7.1 Conclusions
 
-**RQ1 — Feasibility.** A Proximal Policy Optimisation agent trained via domain randomisation and curriculum learning achieves 100% position control success across the full evaluation distribution — a 4:1 mass range (5–20 kg) and a 20:1 friction range (0.1–2.0) — with zero overshoot in every evaluated episode. Both agent variants succeed: the Context-Aware Agent (Stage 5a), which observes mass and friction scales directly, and the Blind Agent (Stage 5b), which infers dynamics from a 10-frame trajectory window alone. Both also generalise beyond the training distribution, maintaining 100% success at mass = 35 kg — 75% above the training ceiling — without any degradation in the success criterion. The answer to RQ1 is unambiguous: domain-randomised PPO with frame stacking is a viable approach to adaptive PID gain scheduling under significant and unknown parameter variation.
+This thesis studied online PID gain scheduling under hidden dynamics
+parameters, framed as a hidden-parameter MDP and investigated through a
+teacher–student comparison of a context-aware agent against a from-scratch
+blind agent, on a wheeled vehicle and an inverted pendulum, against fair
+classical baselines.
 
-**RQ2 — Context Benefit.** Explicit physics context improves adaptation efficiency, but not reliability. The Context-Aware Agent settles consistently 14–15% faster than the Blind Agent across all static evaluation scenarios (mean settling time 1.25–1.39 s versus 1.45–1.57 s), an advantage that is uniform across mass and friction conditions. The mechanism is direct: the Context-Aware Agent can condition gain selection on current dynamics from the first timestep, while the Blind Agent must resolve uncertainty from the shape of its recent trajectory before committing to an appropriate gain schedule. The more important result for RQ2, however, is what the Blind Agent demonstrates independently: dynamics inference from trajectory history alone is sufficient for reliable control. The settling time penalty is the cost of blindness; it is not evidence of failure to adapt. Context improves efficiency. It does not determine feasibility.
+**RQ1 (feasibility).** Learned gain scheduling reliably controls the plant
+across a wide range of unknown, randomized dynamics, with 100% hold success
+across all scenarios and seeds and generalization to out-of-distribution mass
+and actuator conditions.
 
-Beyond the two research questions, the analysis in Chapter 5 produces a third conclusion that reframes the interpretation of the comparison between adaptive and non-adaptive control. The `brake_integral_reset` mechanism — which zeros the PID integrator when the vehicle enters the braking zone — was active for all agents throughout training and evaluation, including the Fixed PID Classical Baseline. When this mechanism is disabled, the Fixed PID fails completely across all scenarios: 0% success and approximately 10 m overshoot in every case. The apparent speed advantage of Fixed PID in the standard evaluation is therefore not evidence that adaptive gain scheduling adds no value over a well-tuned classical controller. It is evidence that a shared engineering aid, applied uniformly to all agents, most benefits a baseline whose fixed gains were pre-tuned for the exact conditions under which it is evaluated. The RL agents, by contrast, were designed and trained to handle the full range of operating conditions that make integral windup management non-trivial in the first place. Identifying and characterising this confound is itself a contribution: careful auditing of implicit simulation mechanisms is necessary when benchmarking adaptive control methods, because unexamined engineering aids can silently equalise controllers that should behave very differently, obscuring the adaptive advantage that motivates learning-based approaches.
+**RQ2 (privileged context).** Observing the hidden parameters yields a modest
+settling-time advantage (1–13%) that is largest when the plant is fast and
+vanishes when it is actuator-limited. The original uniform "+14.5%" advantage
+was shown to be a measurement artifact; the corrected, regime-dependent result
+is the honest answer, and implies that the cost of blindness is small precisely
+where the plant is hardest to move quickly.
 
----
+**RQ3 (memory).** Frame-stack depth is nearly irrelevant — even a near-
+memoryless policy succeeds, because the identifiable dynamics are largely
+exposed by the instantaneous observation — while a recurrent (GRU) policy is
+the fastest variant, albeit with a recurrence-versus-capacity confound.
+
+**RQ4 (representation).** The blind agent's representation encodes the hidden
+parameters in a double dissociation matching the plant physics: mass during the
+acceleration phase, actuator strength during cruise, friction not at all. The
+agent performs genuine implicit system identification.
+
+**Classical comparison and scope of the RL advantage.** A PID with textbook
+anti-windup solves the windup-prone task that naive PID fails, so learned
+control wins neither on windup nor on transient shock rejection (mid-episode
+authority loss defeats all controllers equally). Its distinctive value is
+per-episode initial adaptation to unknown dynamics, demonstrated most sharply on
+the unstable pendulum, where fixed gains fail the hard corners and the learned
+agents do not. MRAC, even with a feasible reference model, fails entirely.
+
+**Methodological contribution.** The audit that produced these corrected
+results — uncovering a unit error, a context bug, a wrong-target measurement, a
+task-aware environment aid, and a non-discriminative randomization axis, each
+capable of inverting a conclusion — is itself a contribution: a demonstration
+that simulation aids, units, and observation plumbing must be audited before
+adaptive controllers are benchmarked.
 
 ## 7.2 Future Work
 
-Four concrete directions follow directly from the limitations identified in Chapter 6.
+**Width-matched memory ablation.** Resolve the RQ3b confound by comparing the
+GRU against an MLP of equal parameter count, isolating recurrence from capacity.
 
-**Recurrent policy architecture.** The most technically well-motivated extension is replacing the feedforward MLP policy with a recurrent architecture — GRU or LSTM. The no-reset retraining failure (Chapter 6, L6) identifies the root cause of the convergence problem: on-policy PPO with an MLP cannot reliably assign credit across the multi-hundred-timestep gap between early Ki suppression during the approach phase and the overshoot penalty that results from unchecked integral accumulation at the braking zone. A recurrent hidden state that persists across the full episode would make this long-horizon dependency learnable without engineering intervention. This is the prerequisite for a demonstration of adaptive gain scheduling that does not rely on the `brake_integral_reset` aid, and is the highest-priority direction for extending this work.
+**A plant where identification is hard.** The blindness penalty was small
+because identification here is easy and largely instantaneous. A plant with a
+slowly-revealed or weakly-excited hidden parameter (e.g. viscous/slip-dependent
+friction, or a delayed actuator fault) would stress implicit identification and
+is the natural setting to see context matter more — and to make the third
+randomization axis meaningful.
 
-**Cross-system transfer.** The gain-scheduling formulation — placing the RL agent in gain space rather than action space — is not intrinsically specific to the two-wheeled vehicle evaluated here. A policy that adjusts Kp, Ki, and Kd is, in principle, applicable to any plant governed by a PID controller. Testing whether a policy trained on this vehicle transfers zero-shot, or with light fine-tuning, to a qualitatively different plant — a manipulator joint, a temperature control loop, a pneumatic positioning system — would determine whether the gain-scheduling abstraction generalises across system types. A positive result would constitute a substantially stronger practical claim than simulation results on a single platform, and would validate the core motivation for operating in gain space rather than producing direct control signals.
+**Approach-phase gain scheduling.** Characterize the gains during the approach
+and braking phases, where scheduling (as opposed to the near-invariant hold-
+phase operating point) actually occurs, to describe what the learned schedule
+does.
 
-**Multi-seed evaluation.** All results reported in this thesis were produced from a single training seed (seed 7). A five-seed evaluation (seeds 7, 21, 42, 84, 123) would quantify initialisation variance and establish whether the 14–15% settling time gap between the Context-Aware Agent and the Blind Agent, and the absolute settling times reported, are representative of the method's typical behaviour rather than specific to one initialisation.
+**Distillation and explicit context inference.** Compare the from-scratch blind
+student against an RMA-style distilled student and against an explicit context
+encoder (PEARL/UP-OSI), to separate the cost of blindness from the benefit of a
+particular inference scheme.
 
-**Earlier disturbance window.** The dynamic evaluation applied mid-episode disturbances at steps 120–220, after most agents had already settled at the target; shifting the window to steps 30–80 would apply disturbances during the active approach and deceleration phase — the period where a sudden change in mass or friction is most likely to compromise braking authority and produce overshoot — and would yield a genuinely informative robustness test.
+**Broader transfer and more seeds.** Extend the pendulum study to more plants
+and seeds, and add bootstrap-backed significance throughout, to strengthen the
+generality and statistical claims.
 
-**Friction decoupling.** The MuJoCo rolling contact model means the friction dimension of the domain randomisation contributes limited training signal under the evaluated conditions. Introducing velocity-dependent viscous damping would make friction a genuine degree of freedom in the vehicle's translational dynamics, allowing friction randomisation to contribute meaningfully to policy generalisation and making the friction scale observation available to the Context-Aware Agent informationally useful for gain selection.
+**Toward hardware.** The sim-to-real gap is unaddressed here. The integral-reset
+finding suggests the first step is an honest sim-to-sim audit — verifying that
+no simulation convenience is carrying the result — before any hardware transfer
+is attempted.
+
+## 7.3 Closing Remark
+
+The most durable outcome of this work is not that reinforcement learning can
+schedule PID gains — it can — but a sharpened account of *when that matters*:
+not for windup, which classical anti-windup handles; not for sudden authority
+loss, which nothing handles by gains alone; but for committing quickly to good
+gains on an unknown, possibly unstable plant. Reaching that account required
+discarding an attractive but artifactual first result, and that discipline —
+auditing the benchmark before trusting the comparison — is offered as the
+thesis's broadest contribution.

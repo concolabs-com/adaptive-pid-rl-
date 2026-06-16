@@ -2,13 +2,51 @@
 
 Update this file after every meaningful thesis writing change.
 
-## Current Phase
+## ⚠ MAJOR REVISION IN PROGRESS (June 2026)
 
-- In Progress
+A full experimental audit (`../AUDIT_FINDINGS.md` — findings F1–F9) invalidated
+key published numbers and two headline claims:
+
+- **All settling times / IAE were 10× too small** (dt bug, F1) — chapter05
+  data was never regenerated after the fix was noted. Corrected data exists.
+- **Result 5 / Limitation L3 (disturbance timing) is backwards** (F2) —
+  disturbances fire mid-approach and DO disrupt; the dynamic eval is valid.
+- **The "0% success no-reset PID" claim was a target-measurement artifact**
+  (F4) — naive PID recovers on 2/3 scenarios; PID+anti-windup solves the
+  no-reset task entirely (F5). The confound chapter needs reframing.
+- **The RQ2 "context 14.5% faster" result is a bug artifact** (F6) — static
+  eval fed the context agent (1,1) context, ~11× outside training
+  distribution. With true context, old 5a ≈ blind 5b.
+- **Scope upgrade locked with user**: HiP-MDP/RMA teacher–student reframe,
+  actuator-strength axis (F9, preset `thesis_v6_hipmdp`), eval protocol v2,
+  5-seed Stage 6 retrains, RQ3 (stack/GRU ablations), RQ4 (probing),
+  anti-windup baselines, fair MRAC rerun (F7), pendulum second plant,
+  ~100-page target.
+
+Old chapters 1–7 remain valid as STRUCTURE but all numbers and the RQ2/confound
+narratives must be rewritten from Stage 6 results. Do not quote any number
+from THESIS_WRITING_GUIDE.md or FINDINGS_SUMMARY.md without checking against
+the corrected data in `../benchmark_results/` (dtfix_*, stage6*, baseline_*,
+mass_sweep, probe_*, stage4b_mrac_feasible).
+
+## Current Phase (updated)
+
+- **All experiments COMPLETE** (RQ1–RQ4, classical baselines, sweeps, shock,
+  gain analysis, pendulum transfer). Numbers in `../AUDIT_FINDINGS.md` +
+  `FINDINGS_SUMMARY.md` (v2).
+- **All 7 chapters + appendix REWRITTEN** (post-audit reframe: HiP-MDP /
+  teacher–student / implicit sysID; RQ1–RQ4; every number corrected). 4 Ch3
+  diagrams generated; result figures exist; references consolidated.
+- **Remaining (Task 20):** prose is correct but DENSE (~11k words ≈ 31 pages
+  body). Reaching ~100 pages needs a deliberate EXPANSION pass (fuller
+  derivations, per-figure discussion, broader lit review, front matter) — real
+  content, not padding. Also: 3 online-RL-PID citations need an author lit
+  search (flagged ⚠ in references.md); supervisor sign-offs (title, citation
+  style) still open.
 
 ## Current Goal
 
-- Write all thesis chapters for "Reinforcement Learning for Adaptive PID Gain Scheduling Under Unknown Vehicle Dynamics"
+- Write all thesis chapters for "Reinforcement Learning for Adaptive PID Gain Scheduling Under Unknown Vehicle Dynamics" (title under revision — implicit system identification framing)
 
 ## Completed
 

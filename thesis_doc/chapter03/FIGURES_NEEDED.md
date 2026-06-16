@@ -1,5 +1,10 @@
 # Chapter 3 — Figures To Generate
 
+> ✅ All four Chapter 3 diagrams generated (June 2026) by
+> `thesis_doc/scripts/make_diagrams.py` → `chapter03/figures/fig3_1..3_4.png`
+> (control loop, environment, curriculum, network). Edit the script to refine.
+
+
 ## Figure 3.1 — Control Loop Block Diagram
 Two-loop closed-loop architecture.
 

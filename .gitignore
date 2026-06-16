@@ -131,3 +131,8 @@ $RECYCLE.BIN/
 
 # Temporary Documents
 thesis_writing/
+
+# Run logs and archives (throwaway)
+*.log
+*.rar
+MUJOCO_LOG.TXT

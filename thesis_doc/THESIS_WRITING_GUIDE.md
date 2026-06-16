@@ -1,6 +1,19 @@
 # Thesis Writing Guide
 ## Meta-RL for Adaptive PID Gain Scheduling Under Unknown Vehicle Dynamics
 
+> ⚠️ **SUPERSEDED (June 2026 audit).** The numbers and framing below are the
+> ORIGINAL draft and are now WRONG in several places (10× settling dt bug, the
+> "+14.5% everywhere" context artifact, "fixed PID 0% no-reset", strawman
+> MRAC, mass-only non-discriminative task). **Do NOT take numbers from this
+> file.** Canonical post-audit sources, in priority order:
+>   1. `../AUDIT_FINDINGS.md` — every corrected/new number with provenance
+>   2. `FINDINGS_SUMMARY.md` (v2) — results narrative, RQ1–RQ4
+>   3. `CONTEXT.md` (v2) — glossary, agent names, key numbers
+> The chapter-structure and formula scaffolding below is still useful as an
+> outline; treat all tables/numbers as historical. New framing: HiP-MDP /
+> teacher–student / implicit system identification, RQ1–RQ4, actuator axis,
+> two plants (car + pendulum).
+
 This document contains everything needed to write the thesis — chapter structure, narrative, exact numbers, formulas, figures list, and honest framing guidance. Write from this, not from memory.
 
 ---
