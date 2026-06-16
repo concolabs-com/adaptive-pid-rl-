@@ -330,11 +330,37 @@ because the plant is unstable (Table 5.6, survival fraction).
 
 Fixed gains fail the hard dynamics corners (Heavy-Pole-Weak-Gear 0.58, OOD
 Weak-Gear 0.46); the learned agents rescue them (context 1.00 / blind 0.95 on
-Heavy-Pole-Weak-Gear). On the most extreme OOD corner all controllers struggle
-and the teacher/student ordering inverts within noise. This is the clearest
-demonstration that learned gain scheduling adds value over fixed gains when
-adaptation genuinely matters — and that the contribution is not specific to the
-wheeled-vehicle plant.
+Heavy-Pole-Weak-Gear).
+
+The structure of the result is worth dwelling on, because it sharpens what
+"adaptation matters" means. On the four benign scenarios — nominal, light pole,
+heavy pole, weak gear taken singly — every controller, including fixed PID,
+survives the full episode: a single well-chosen gain set is adequate when only
+one parameter deviates moderately. The fixed baseline fails only when *two*
+adverse deviations compound (a heavy pole that demands strong corrective torque
+*and* a weak gear that cannot supply it, or an extreme gear deficit). These are
+exactly the corners where a fixed compromise gain is wrong in both directions
+at once — too weak for the heavy pole if tuned for the nominal, too aggressive
+and oscillatory for the light pole if tuned for the heavy. The learned agents,
+by selecting gains per episode, escape the compromise: the context agent reads
+the pole mass and gear directly and commits to a matched gain set; the blind
+agent infers them from the early sway of the pole. This is the same
+"per-episode initial calibration" mechanism identified on the car (§5.8–5.9),
+but here it is the difference between balancing and falling rather than between
+settling in 11 s or 14 s — which is why the *magnitude* of the RL advantage is
+so much larger on the unstable plant.
+
+Two honest caveats. On the most extreme corner (OOD Very Weak Gear, 0.45)
+*all* controllers struggle and the teacher/student ordering inverts within
+noise (context 0.60 < blind 0.75) — at the edge of controllability, having the
+true parameter does not help if no gain set can stabilize the plant with the
+available torque, the angular analogue of the car's actuator-authority ceiling
+(§5.8). And the pendulum study uses two seeds and a cascade outer loop specific
+to balancing, so it is reported as a transfer *demonstration*, not a second
+full quantitative study. With those caveats, it is the clearest evidence in the
+thesis that learned gain scheduling adds real value over fixed gains when
+adaptation genuinely matters, and that the contribution is not an artifact of
+the wheeled-vehicle plant.
 
 ## 5.11 Summary
 

@@ -27,10 +27,33 @@ per-episode variation:
 Ten episodes are drawn per scenario per seed, over five training seeds, giving
 50 genuinely distinct episodes per scenario per agent.
 
-**Success criterion.** Position within $\pm0.05$ m of target for 25 consecutive
-control steps. **Settling time** is the earliest time after which the error
-remains within band; **overshoot** is $\max(0, \max_t x_t - x_{\text{target}})$;
-**IAE** is $\int|e|\,dt$ over the episode; all use $\Delta t = 0.02$ s.
+### 4.1.1 Metric definitions
+
+All metrics are computed from the per-control-step position trace
+$\{x_t\}_{t=0}^{T}$ with error $e_t = x_{\text{target}} - x_t$ and control
+period $\Delta t = 0.02$ s.
+
+- **Success** $\in\{0,1\}$: the episode achieves the hold criterion — there
+  exists a window of $H=25$ consecutive steps, all with $|e_t|\le\delta$
+  ($\delta = 0.05$ m). This is the binary task outcome.
+- **Settling time** $t_s$: the earliest time from which the error remains
+  within the band for the rest of the run,
+  $t_s = \Delta t\cdot\min\{i : |e_j|\le\delta\ \forall j\ge i\}$. If no such
+  $i$ exists the episode is recorded as a timeout at $T\Delta t$ (100 s). This
+  "stays-within" definition (rather than first-entry) avoids crediting an
+  agent that enters the band, overshoots out, and returns.
+- **Overshoot** $= \max(0,\ \max_t x_t - x_{\text{target}})$ — the furthest the
+  vehicle travels past the target.
+- **IAE** (integral of absolute error) $= \sum_t |e_t|\,\Delta t$ — a single
+  scalar capturing the whole transient's error mass; lower is tighter tracking.
+- **Final absolute error** $= |e_T|$ — residual at episode end, a check that a
+  "success" is genuinely held, not a fly-through.
+
+The unit error corrected in the audit (F1) affected $t_s$ and IAE (both scale
+with $\Delta t$): using the physics timestep 0.002 s instead of the control
+period 0.02 s reported them 10× too small. Overshoot, success, and final error
+are dimensionless-in-time and were unaffected — which is one reason the error
+went unnoticed originally (the success rates looked correct).
 
 ## 4.2 Scenario Suite
 
