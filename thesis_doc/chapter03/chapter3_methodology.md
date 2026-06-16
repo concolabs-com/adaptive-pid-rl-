@@ -96,11 +96,35 @@ with a progress term, a distance penalty, a velocity penalty, and a direct
 overshoot penalty. Inside the braking zone ($|e| < 2$ m) the progress and
 distance terms are zeroed and a dense deceleration bonus ($+10\,\Delta(-\dot
 x)$ while slowing) plus a quadratic velocity penalty shape a controlled stop; a
-terminal bonus of $+80$ is given on successful hold completion. The shaping was
-arrived at iteratively (governor and hard-overshoot "cliff" variants were tried
-and dropped — see §3.6); the final form rewards approach, then deceleration,
-then a held stop, without a hard termination that was found to starve
-exploration.
+terminal bonus of $+80$ is given on successful hold completion.
+
+Each term answers a specific failure mode observed during development
+(Table 3.x):
+
+| Term | Form | Purpose / failure it prevents |
+|------|------|-------------------------------|
+| Progress | $+5\,\Delta x$ | dense signal to move toward the target; without it the sparse hold bonus is almost never reached by exploration |
+| Distance | $-0.75\,|e|$ | breaks ties among slow approaches; rewards getting *and staying* close |
+| Velocity | $-0.12\,\dot x^2$ | discourages a fast fly-by that cannot be braked; quadratic so it bites hardest at high speed |
+| Overshoot | $-2.0\max(0,x-x_t)$ | direct penalty for passing the target — the single most damaging error on this windup-prone plant |
+| Decel bonus | $+10\,\Delta(-\dot x)$ in zone | a *dense* braking reward so deceleration is reinforced step-by-step rather than only through the terminal bonus |
+| Terminal | $+80$ on hold | the actual task objective; large enough to dominate once reachable |
+
+Two design choices proved important. First, **zeroing progress and distance
+inside the braking zone** removes the perverse incentive to keep inching
+forward for progress reward when the agent should be stopping; in the zone the
+only gradients are the deceleration bonus and the velocity penalty, which
+together specify "slow down and hold". Second, the shaping was arrived at
+iteratively: earlier variants used a speed *governor* (a hard cap that masked
+what the policy had learned about braking) and a hard-overshoot *cliff* (a
+terminating penalty for passing the target). Both were dropped — the governor
+because it confounded the evaluation of learned braking, the cliff because the
+hard termination starved exploration (the agent rarely survived long enough to
+discover the hold bonus, and the value function collapsed to the cliff penalty
+everywhere). The final form rewards approach, then deceleration, then a held
+stop, using only soft penalties, and is the `thesis_v4_cliff`/`thesis_v6_hipmdp`
+reward; the dropped variants are documented because their failure is itself
+informative about reward design on input-saturated plants.
 
 ## 3.3 Domain Randomization — Three Hidden Axes
 

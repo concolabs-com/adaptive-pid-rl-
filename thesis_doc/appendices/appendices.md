@@ -75,6 +75,29 @@ Pole-mass scale 0.5–2.5; gear scale 0.6–1.4; frame_skip 2 (control 0.04 s);
 base angle-PID Kp=3.5, Kd=0.4; cascade outer loop kx=−0.05, kẋ=−0.10,
 θ_ref_max=0.15 rad; PPO 300k steps, seeds 7, 21.
 
+### A.7 Dropped reward variants (negative design results)
+
+Two earlier reward/protocol variants were evaluated and discarded; they are
+recorded because their failure modes informed the final design.
+
+- **Speed governor (`thesis_v3_safety`).** A hard cap on approach speed
+  (braking command injected when the predicted stopping distance exceeded the
+  remaining distance). It produced safe trajectories but *masked* what the
+  policy had learned about braking — every agent looked equally good because
+  the governor, not the learned gains, did the stopping. Removed so the
+  evaluation reflects the learned controller.
+- **Overshoot cliff.** A large terminating penalty (−300) for passing the
+  target. Intended to teach precise stopping, it instead starved exploration:
+  the episode ended on the first overshoot, the agent rarely survived to reach
+  the hold bonus, and the value function collapsed toward the cliff penalty
+  everywhere (zero useful gradient toward braking). Replaced by the soft
+  per-step overshoot penalty (−2·overshoot) plus the dense deceleration bonus.
+
+The lesson — that on an input-saturated plant, *hard* safety constraints
+(governor, cliff) either mask the learned behaviour or starve exploration,
+whereas *dense soft* shaping (progress, decel bonus) succeeds — is the reward-
+design analogue of the anti-windup finding in Chapter 5.
+
 ## Appendix B — Full Per-Seed Results
 
 Per-seed `eval_seed_summary.csv` files and cross-seed aggregates
@@ -82,7 +105,27 @@ Per-seed `eval_seed_summary.csv` files and cross-seed aggregates
 `stage6a_context_hipmdp/`, `stage6b_blind_hipmdp/`,
 `stage6c_stack{1,3,5,20}/`, `stage6d_gru_blind_s{7,21}/`. Sweep, shock,
 probing, gain-analysis, anti-windup, MRAC, and pendulum CSVs are under the
-correspondingly named `benchmark_results/` directories.
+correspondingly named `benchmark_results/` directories. Each cross-seed
+aggregate is produced by `utils/aggregate_seeds.py`, which reports, per
+scenario and metric, the mean of the five per-seed means, their standard
+deviation, and a percentile bootstrap 95% confidence interval over the five
+seed means (10,000 resamples). Because $n_s=5$, these intervals are wide by
+construction and are reported as such; they bound, rather than precisely
+estimate, the seed-level variance (§4.4).
+
+### B.1 Reproducibility and compute log
+
+All runs were executed on a single laptop (Intel i7-11800H, 32 GB RAM, RTX 3070
+Laptop), CPU-bound for the small policies. Indicative wall-clock: car MLP
+1M-step run ≈ 15 min; car GRU ≈ 75 min; pendulum 300k ≈ 8–12 min; eval-only
+passes (sweeps, probes, shock) ≈ 1–10 min each. Two operational interruptions
+occurred and were handled without affecting results: a laptop sleep/hibernate
+suspended a training chain (resolved by disabling AC sleep and resuming only
+the missing seeds, since the PPO implementation checkpoints only at seed end),
+and a transient Windows DLL-initialization failure (`0xC0000142`) aborted a
+batch under `set -e` (resolved with idempotent, retry-once resume scripts).
+Both incidents, and the full audit trail, are documented in the accompanying
+`PROJECT_LOG/` and `AUDIT_FINDINGS.md`.
 
 ## Appendix C — Code and Artifact Map
 
