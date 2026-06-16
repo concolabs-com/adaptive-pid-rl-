@@ -406,6 +406,27 @@ agents pull is initial calibration and approach shaping, not a dramatic
 gain surface. (Approach-phase gains carry more of the scheduling than the hold
 phase analysed here; this is noted as a refinement.)
 
+Figure 5.x plots the steady-state $K_p$, $K_i$, $K_d$ against actuator strength
+for both agents at nominal mass. Two things are visible. The curves are
+**nearly horizontal** — over the full training actuator range the teacher's
+$K_d$ moves about 1.5%, far less than the 3.7× change in the *task* difficulty
+(settling) over the same range — so whatever adaptation produces the RQ2
+advantage is not a large hold-phase gain change. And the two agents' curves are
+**offset but parallel**: the teacher sits at low-$K_p$/high-$K_d$, the student
+at high-$K_p$/low-$K_d$, each essentially flat. That two distinct, nearly
+parameter-independent operating points both achieve 100% success says the task
+has a *basin* of adequate gains rather than a sharp optimum, which in turn
+explains why the blindness penalty is small (the student need only land
+somewhere in the basin, not pinpoint the teacher's exact gains) and why stack
+depth barely matters (no precise per-step gain target to track). The honest
+qualification, repeated from §5.9's opening, is that this analysis is of the
+*hold* phase; the approach and braking phases, where the controller is actually
+fighting the dynamics, are where any genuine scheduling would appear, and
+characterizing those is left to future work (§7.2). What can be said firmly is
+that the learned controllers are closer to *well-chosen robust regulators* than
+to *steep gain schedulers* — a more modest and more accurate description than
+"the agent learns a gain schedule", and one the data supports directly.
+
 ## 5.10 Transfer to an Unstable Plant: Inverted Pendulum
 
 On the inverted-pendulum balance task with randomized pole mass and actuator
