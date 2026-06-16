@@ -130,10 +130,26 @@ is what localized the bug to the static-evaluation path.
 ### 5.3.2 Actuator sweep
 
 Sweeping actuator strength at nominal mass (Figure 5.x) makes the mechanism
-explicit. Teacher and student both succeed across $\kappa\in[0.5,2.0]$
-(including OOD ends), and the teacher leads throughout — by ~1.4 s at
-$\kappa=2.0$ (8.8 vs 10.1 s) narrowing toward the weak-actuator end. The
-advantage tracks how much settling headroom the actuator allows.
+explicit. The figure plots settling time against $\kappa$ over $[0.5,2.0]$ for
+fixed PID, the blind student, and the context teacher; a shaded band marks the
+training range $[0.6,1.4]$ so the outer points are genuinely out-of-
+distribution. Three features stand out. First, all curves are **monotone
+decreasing and convex** — settling falls steeply as the motor strengthens
+(from ~22 s at $\kappa=0.5$ to ~6 s for fixed PID at $\kappa=2.0$) and flattens
+once the actuator is no longer the bottleneck, the direct signature of the
+$\approx d/v_{\max}$, $v_{\max}\propto\kappa$ relation derived in §3.2. Second,
+the teacher tracks below the student throughout, by ~1.4 s at $\kappa=2.0$ (8.8
+vs 10.1 s) and narrowing toward the weak-motor end — the advantage scales with
+the *settling headroom* the actuator allows, which is the same regime-dependent
+story as Table 5.1 read along a continuous axis rather than across discrete
+scenarios. Third, **success stays at 100% across the entire sweep, including
+both OOD ends** ($\kappa=0.5$, below the training floor, and $\kappa=2.0$,
+above the ceiling): the learned policies extrapolate on this axis rather than
+breaking at the training boundary, consistent with the OOD scenarios in
+Table 5.1. The fixed-PID curve is the reference for "how much of the settling is
+simply travel time" — the gap between it and the learned curves is the cost the
+learned conservatism (higher $K_d$, hedged braking) pays for robustness, and it
+is largest exactly where fast settling is achievable.
 
 ## 5.4 RQ3 — How Much Memory Does Inference Need?
 
@@ -304,15 +320,35 @@ estimates what to do from returns rather than from a presumed sensitivity sign
 
 ## 5.7 Task Discriminativeness: Why the Actuator Axis Matters
 
-Sweeping mass 5→50 kg moves fixed-PID settling only ~11% (11.06→12.30 s) — at
-the actuator-limited cruise speed, mass barely affects a multi-metre drive.
-Sweeping actuator strength 0.5→2.0 moves it **3.7×** (21.8→5.9 s). The original
-mass-only randomization therefore left the task nearly non-discriminative
-(every controller looked identical), which is why the actuator axis was added.
-The sweep also exposes the v1 context bug: re-running the old context agent with
-the broken $(1,1)$ context reproduces the original fast numbers, while applying
-the *true* context yields settling indistinguishable from the blind agent —
-confirming the artifact diagnosed in §5.3.1.
+A controlled benchmark must be able to *distinguish* the controllers it
+compares; a task on which every method scores identically measures nothing.
+This section quantifies the discriminating power of each randomization axis and
+explains why the original design failed it.
+
+Sweeping mass 5→50 kg — a tenfold range, well beyond the 4:1 training span —
+moves fixed-PID settling only ~11% (11.06→12.30 s). Sweeping actuator strength
+0.5→2.0 moves it **3.7× (21.8→5.9 s)**. The contrast is not a quirk of the
+controller but a property of the plant: §3.2 showed $v_{\max}\propto\kappa$ is
+independent of mass, with mass entering only the acceleration time constant
+$\tau_v\propto m$, which contributes a transient of order a few hundred
+milliseconds against a cruise of ten-plus seconds. Mass therefore moves
+settling by roughly $\tau_v/t_s \sim$ a few percent, while actuator strength
+moves the dominant $d/v_{\max}$ term proportionally. The original mass-only
+randomization sat on the *flat* axis, which is why — compounded by the
+integral-reset aid (§5.6) — every controller looked identical at ~100% / ~0
+overshoot and nothing could be concluded. Adding the actuator axis put a steep,
+discriminating gradient into the task; it is the single change that makes the
+controller comparison meaningful, and it is the reason RQ2's regime-dependence
+is visible at all.
+
+The mass sweep doubles as the cleanest demonstration of the F6 context bug
+(§5.3.1). Re-running the *original* Stage-5 context agent across the sweep with
+the broken constant $(1,1)$ context reproduces the published fast numbers,
+whereas pushing the *true* per-point context yields a curve essentially on top
+of the blind agent's — the "context advantage" evaporates when the agent is
+actually shown its context in-distribution. Plotting both against the blind
+baseline on one axis makes the artifact impossible to miss, and is the figure
+that originally triggered the audit of the static-evaluation path.
 
 ## 5.8 Mid-Approach Shock: The Boundary of Adaptation
 
