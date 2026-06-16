@@ -117,11 +117,38 @@ motivates the learning-based approach.
 A Markov decision process is a tuple $(\mathcal{S}, \mathcal{A}, P, R, \gamma,
 \rho_0)$ with states $\mathcal{S}$, actions $\mathcal{A}$, transition kernel
 $P(s'|s,a)$, reward $R$, discount $\gamma\in[0,1)$, and initial distribution
-$\rho_0$. A policy $\pi_\theta(a|s)$ induces the objective $J(\theta) =
-\mathbb{E}_{\tau\sim\pi_\theta}[\sum_t \gamma^t r_t]$. The policy-gradient
-theorem gives $\nabla_\theta J = \mathbb{E}[\sum_t \nabla_\theta \log
-\pi_\theta(a_t|s_t)\,A^{\pi}(s_t,a_t)]$, where $A^\pi = Q^\pi - V^\pi$ is the
-advantage.
+$\rho_0$. A policy $\pi_\theta(a|s)$ induces a distribution over trajectories
+$\tau=(s_0,a_0,s_1,\dots)$ and the objective $J(\theta) =
+\mathbb{E}_{\tau\sim\pi_\theta}[\sum_t \gamma^t r_t]$. The state-value and
+action-value functions are $V^\pi(s)=\mathbb{E}_\pi[\sum_{k\ge0}\gamma^k
+r_{t+k}\mid s_t=s]$ and $Q^\pi(s,a)=\mathbb{E}_\pi[\sum_{k\ge0}\gamma^k
+r_{t+k}\mid s_t=s,a_t=a]$, related by the Bellman expectation equation
+$V^\pi(s)=\mathbb{E}_{a\sim\pi}[Q^\pi(s,a)]$ and
+$Q^\pi(s,a)=R(s,a)+\gamma\,\mathbb{E}_{s'}[V^\pi(s')]$.
+
+**Policy-gradient theorem.** Because only the trajectory *distribution* depends
+on $\theta$, the gradient can be written without differentiating the (unknown)
+dynamics. Using the log-derivative identity $\nabla_\theta p_\theta =
+p_\theta\,\nabla_\theta\log p_\theta$ on the trajectory density
+$p_\theta(\tau)=\rho_0(s_0)\prod_t \pi_\theta(a_t|s_t)P(s_{t+1}|s_t,a_t)$, the
+transition and initial terms drop out of $\nabla_\theta\log p_\theta$ (they do
+not depend on $\theta$), leaving
+
+$$ \nabla_\theta J(\theta) = \mathbb{E}_{\tau\sim\pi_\theta}\!\Big[\sum_t \nabla_\theta \log \pi_\theta(a_t|s_t)\,\Psi_t\Big], $$
+
+where the weight $\Psi_t$ may be the return, the action-value $Q^\pi$, or — with
+the lowest variance among unbiased choices — the **advantage**
+$A^\pi(s,a)=Q^\pi(s,a)-V^\pi(s)$. Subtracting the state-dependent baseline
+$V^\pi(s)$ leaves the gradient unbiased (since
+$\mathbb{E}_{a\sim\pi}[\nabla_\theta\log\pi_\theta(a|s)]=0$) while removing the
+variance due to states being intrinsically good or bad rather than actions
+being better or worse than average. This is the foundation on which §2.4.2–2.4.3
+build: estimate $A_t$ well (GAE), and take the largest stable step toward
+increasing $\mathbb{E}[\nabla\log\pi\cdot A]$ without invalidating the on-policy
+samples (PPO's clip). That the dynamics never appear is exactly why the method
+is **model-free** — the agent needs no model of how mass, friction, or actuator
+strength map to motion, which is what makes it applicable to the HiP-MDP where
+those parameters are hidden.
 
 ### 2.4.2 From trust regions to PPO
 

@@ -256,16 +256,51 @@ fails, therefore RL" is untenable** — the fair classical baseline closes the
 windup gap — so the learned controllers' value must rest on adaptation across
 varying dynamics, not on windup handling.
 
+The mechanism behind the three rows of Table 5.4 is exactly the windup analysis
+of §2.2, and tracing it makes the comparison concrete. The naive controller
+accumulates an integral of order $K_i\bar e T \approx 17$ over the 8 m approach;
+when it reaches the target the integral term alone saturates the actuator and
+the derivative term ($K_d|\dot e|\approx 0.25$) cannot arrest the vehicle, so it
+overshoots by ~7 m, the error reverses, the integrator unwinds, and the loop
+finally settles tens of seconds later — when it settles at all (the Heavy &
+Slippery case drives backward past the origin into the runaway-termination
+region and is scored a failure). Back-calculation removes this by bleeding the
+integrator toward the saturation-consistent value the instant the command
+clips: the integral never reaches a value the derivative term cannot counter,
+so the controller decelerates cleanly with 0.13 m overshoot. The learned agents
+sit between the two — they were trained with the task-aware reset always
+firing, so they never had to learn windup-free gain scheduling; evaluated
+without it they still reach and hold the target (their learned conservatism
+helps) but with multi-metre transients that a purpose-built anti-windup loop
+avoids. The honest reading is that windup is a *solved* problem for which a
+learned controller is unnecessary, and the no-reset environment is therefore
+the wrong place to look for an RL advantage — the right place is varying,
+unidentified, or unstable dynamics (§5.10), not a fixed-parameter windup task.
+
 ### 5.6.3 MRAC fails fairly
 
 MRAC with a *feasible* reference model ($\tau_m\in\{10,15\}$ s, achievable at
 $v_{\max}=0.5$ m/s), corrected control period, and a normalized MIT rule still
 achieves **0% success** across all configurations (overshoot 2.4–4.6 m,
-timeout), and underperforms even naive fixed PID. The MIT rule's sensitivity
-assumption breaks on this saturated, nonlinear plant; $\sigma$-modification
-bounds drift but does not restore convergence. This is now a *defensible*
-negative result rather than a strawman: classical model-reference adaptation
-does not solve the task even when configured favourably.
+timeout), and underperforms even naive fixed PID. The failure is instructive.
+The MIT rule adapts each gain along $\dot K \propto -\,e_m\,\partial y/\partial
+K$, which presumes the sign of the plant sensitivity $\partial y/\partial K$ is
+known and stable so the update consistently reduces the model-following error
+$e_m$. On this plant neither holds: the actuator saturates for most of the
+approach, so over a wide operating band $\partial y/\partial K \approx 0$ (more
+gain produces no more torque) and the gradient signal vanishes exactly when the
+controller most needs to act; and once the command comes off saturation the
+sensitivity flips sign through the overshoot, so the same update that helped
+during approach now destabilizes the hold. The earlier strawman configuration
+(infeasible $\tau_m$, the 5× `dt` error) guaranteed a large persistent $e_m$
+that drove the gains to their bounds; fixing those removes the artifact but not
+the underlying sign/saturation problem, and $\sigma$-modification only bounds
+the resulting drift without restoring a usable gradient. This is now a
+*defensible* negative result rather than a strawman: classical
+model-reference adaptation does not solve the task even when configured
+favourably, which is precisely the gap a model-free learned policy — which
+estimates what to do from returns rather than from a presumed sensitivity sign
+— is positioned to fill.
 
 ## 5.7 Task Discriminativeness: Why the Actuator Axis Matters
 

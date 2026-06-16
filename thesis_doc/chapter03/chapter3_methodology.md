@@ -190,11 +190,35 @@ indistinguishable; without it, only anti-windup (or the learned agents) cope.
 
 To test generality the same architecture is applied to a MuJoCo inverted
 pendulum (cart-pole) balance task. The hidden parameters are pole-mass scale
-$[0.5,2.5]$ and actuator-gear scale $[0.6,1.4]$. A fixed **cascade outer loop**
-shapes the angle setpoint from cart position, $\theta_{\text{ref}} =
-\mathrm{clip}(k_x x + k_{\dot x}\dot x, \pm\theta_{\max})$, and the scheduled
-PID stabilizes the pole angle about $\theta_{\text{ref}}$; the RL action
-multiplies the angle-PID gains, exactly as for the car. The reward rewards
-upright balance and centred cart and penalizes failure (pole or cart leaving
-bounds). This plant is *unstable*, so the value of adaptation is expected to be
-larger than on the self-stabilizing car — borne out in §5.x.
+$[0.5,2.5]$ and actuator-gear scale $[0.6,1.4]$.
+
+**Why a cascade is needed.** A single PID on the pole angle stabilizes the
+*pole* but not the *cart*: with the angle held at zero the cart is free to drift
+along the rail until it hits the limit and the episode ends. The classical
+remedy is a two-level cascade. An inner loop regulates the pole angle $\theta$
+to a reference $\theta_{\text{ref}}$; an outer loop sets $\theta_{\text{ref}}$
+from the cart state so that, to recover the cart toward the rail centre, the
+controller deliberately leans the pole *back* toward centre and lets the
+inner loop chase it:
+
+$$ \theta_{\text{ref}} = \mathrm{clip}\big(k_x\,x + k_{\dot x}\,\dot x,\ -\theta_{\max},\ \theta_{\max}\big), $$
+
+with small negative gains $k_x, k_{\dot x} < 0$ (a cart at $+x$ needs a slight
+backward lean, $\theta_{\text{ref}}<0$, so the stabilizing push returns it
+toward the origin) and a saturation $\theta_{\max}=0.15$ rad that keeps the
+commanded lean within the small-angle regime where the inner loop is valid. The
+sign and magnitude were verified empirically during base-gain tuning (a
+positive-gain cascade drove the cart *off* the rail within 0.1 s of episode
+length, confirming the sign). The outer loop is **fixed** for all controllers,
+including the RL agents; the learned action multiplies only the inner angle-PID
+gains $K_p, K_d$ (with a small $K_i$ range), so the comparison is, as on the
+car, purely about how the inner-loop gains are scheduled given the hidden plant.
+The reward is $r = 1 - 5\theta^2 - 0.1 x^2 - 0.05\dot x^2$ per step with a
+$-20$ penalty on failure (pole past $\pm0.4$ rad or cart past $\pm0.95$ m),
+which rewards upright-and-centred balance and sharply punishes a fall.
+
+This plant is *unstable* — left uncontrolled the pole diverges exponentially —
+so a poorly matched fixed gain does not merely settle slowly (as on the car) but
+falls outright. The value of per-episode adaptation is therefore expected to be
+qualitatively larger here, and §5.10 confirms it: fixed gains fail the hard
+dynamics corners that the learned agents survive.
