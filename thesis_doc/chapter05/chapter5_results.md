@@ -53,7 +53,7 @@ fell into when its exploding value loss was read as a fundamental failure of
 recurrence rather than an artifact of that protocol's hard-termination
 landscape (§5.4.2).
 
-![Training return and value loss vs PPO update for the context and blind agents (seed 7); dotted lines mark the four curriculum-phase boundaries.](../figures/fig5_training_curves.png)
+![Training return and value loss vs PPO update for the context and blind agents (seed 7); dotted lines mark the four curriculum-phase boundaries.](figures/fig5_training_curves.png)
 
 *Figure 5.0 — Training dynamics over 1M steps, with curriculum-phase boundaries (dotted). Return rises within each phase and dips at boundaries as the target range expands.*
 
@@ -116,7 +116,7 @@ teacher and student. Both succeed everywhere; the teacher is faster, by a
 
 *Table 5.1 — Settling time, teacher vs student (5 seeds, protocol v2).*
 
-![Context vs blind settling by scenario (5 seeds, mean ± sd). The teacher leads on every scenario, by a margin that shrinks from the fast scenarios (left) to the actuator-limited ones (right).](../figures/fig5_rq2_settling.png)
+![Context vs blind settling by scenario (5 seeds, mean ± sd). The teacher leads on every scenario, by a margin that shrinks from the fast scenarios (left) to the actuator-limited ones (right).](figures/fig5_rq2_settling.png)
 
 *Figure 5.1 — RQ2: context-aware vs blind settling time across the eight scenarios.*
 
@@ -163,7 +163,7 @@ is what localized the bug to the static-evaluation path.
 
 ### 5.3.2 Actuator sweep
 
-Sweeping actuator strength at nominal mass (Figure 5.x) makes the mechanism
+Sweeping actuator strength at nominal mass (Figure 5.2) makes the mechanism
 explicit. The figure plots settling time against $\kappa$ over $[0.5,2.0]$ for
 fixed PID, the blind student, and the context teacher; a shaded band marks the
 training range $[0.6,1.4]$ so the outer points are genuinely out-of-
@@ -185,7 +185,7 @@ simply travel time" — the gap between it and the learned curves is the cost th
 learned conservatism (higher $K_d$, hedged braking) pays for robustness, and it
 is largest exactly where fast settling is achievable.
 
-![Actuator sweep: settling, overshoot, and success vs actuator strength for fixed PID, blind, and context controllers; green band is the training range.](../figures/fig5_actuator_sweep.png)
+![Actuator sweep: settling, overshoot, and success vs actuator strength for fixed PID, blind, and context controllers; green band is the training range.](figures/fig5_actuator_sweep.png)
 
 *Figure 5.2 — Actuator-strength sweep. Settling is monotone-convex (∝ 1/κ), the teacher leads throughout with shrinking margin, and success holds at 100% across both out-of-distribution ends.*
 
@@ -223,7 +223,7 @@ of this explanation. (Caveat: because the previous action is in the observation,
 $k=1$ is not strictly Markov-blind; a fully memoryless variant would drop it,
 and is the clean control this prediction invites.)
 
-![Stack-depth ablation: settling vs frame-stack depth k for three scenarios; the curves are flat, with k=1 matching k=20.](../figures/fig5_stack_ablation.png)
+![Stack-depth ablation: settling vs frame-stack depth k for three scenarios; the curves are flat, with k=1 matching k=20.](figures/fig5_stack_ablation.png)
 
 *Figure 5.3 — RQ3 stack-depth ablation. Settling is flat across k ∈ {1,3,5,10,20} on every scenario; temporal depth is not the load-bearing mechanism.*
 
@@ -271,7 +271,7 @@ giving decodability as a function of phase.
 
 To test whether the blind policy *represents* the hidden parameters, these
 probes were scored by $R^2$ as a function of episode phase. The result is a
-clean **double dissociation** matching the plant physics (Figure 5.x):
+clean **double dissociation** matching the plant physics (Figure 5.4):
 
 | Parameter | Decodable phase | Peak $R^2$ | In cruise |
 |-----------|-----------------|------------|-----------|
@@ -289,7 +289,7 @@ closed-loop trajectory excites, in the phase where each becomes physically
 observable — direct evidence that the agent performs implicit system
 identification rather than merely executing a robust fixed policy.
 
-![Probe out-of-fold R² for mass, actuator, and friction vs episode time, decoded from the blind policy's representation.](../figures/fig5_probe_r2.png)
+![Probe out-of-fold R² for mass, actuator, and friction vs episode time, decoded from the blind policy's representation.](figures/fig5_probe_r2.png)
 
 *Figure 5.4 — RQ4 double dissociation. Mass is decodable during acceleration (early, then decays); actuator strength during cruise (rises and sustains); friction never above chance.*
 
@@ -349,9 +349,15 @@ learned controller is unnecessary, and the no-reset environment is therefore
 the wrong place to look for an RL advantage — the right place is varying,
 unidentified, or unstable dynamics (§5.10), not a fixed-parameter windup task.
 
-![No-reset environment: settling by scenario for none / clamp / back-calculation anti-windup.](../figures/fig5_antiwindup.png)
+![No-reset environment: settling by scenario for none / clamp / back-calculation anti-windup.](figures/fig5_antiwindup.png)
 
 *Figure 5.5 — Anti-windup in the no-reset environment. Back-calculation and conditional integration (clamp) recover clean settling where the un-protected loop (none) suffers large windup transients.*
+
+![Naive fixed PID without anti-windup in the no-reset environment (target 8 m), three scenarios: displacement overshoots the target by several metres and oscillates — Standard settles only near 70 s, and Heavy & Slippery ramps past the target and is scored a failure within the window.](figures/fig5_antiwindup_traces_none.png)
+
+![The same fixed PID with back-calculation anti-windup: every scenario ramps to the 8 m target and arrests cleanly near 21 s with sub-decimetre overshoot.](figures/fig5_antiwindup_traces_backcalc.png)
+
+*Figure 5.6 — Anti-windup trajectory traces (single rollouts, no-reset env). (a) Without protection the integrator winds up over the 8 m approach and the loop overshoots by several metres, oscillating for tens of seconds (Heavy & Slippery fails within the window). (b) Back-calculation bleeds the integrator the instant the command saturates, so the same gains settle cleanly near 21 s with negligible overshoot — the trajectory-level mechanism behind the Table 5.4 / Figure 5.5 summary.*
 
 ### 5.6.3 MRAC fails fairly
 
@@ -378,9 +384,9 @@ favourably, which is precisely the gap a model-free learned policy — which
 estimates what to do from returns rather than from a presumed sensitivity sign
 — is positioned to fill.
 
-![MRAC success-rate heatmap across reference-model configurations and scenarios — uniformly 0%.](../figures/fig5_mrac.png)
+![MRAC success-rate heatmap across reference-model configurations and scenarios — uniformly 0%.](figures/fig5_mrac.png)
 
-*Figure 5.6 — MRAC with a feasible reference model: 0% success across every (τ_m, σ) configuration and scenario.*
+*Figure 5.7 — MRAC with a feasible reference model: 0% success across every (τ_m, σ) configuration and scenario.*
 
 ## 5.7 Task Discriminativeness: Why the Actuator Axis Matters
 
@@ -414,9 +420,9 @@ actually shown its context in-distribution. Plotting both against the blind
 baseline on one axis makes the artifact impossible to miss, and is the figure
 that originally triggered the audit of the static-evaluation path.
 
-![Mass sweep vs actuator sweep: fixed-PID settling is nearly flat across a 10× mass range but steep across actuator strength.](../figures/fig5_mass_sweep.png)
+![Mass sweep vs actuator sweep: fixed-PID settling is nearly flat across a 10× mass range but steep across actuator strength.](figures/fig5_mass_sweep.png)
 
-*Figure 5.7 — Mass sweep (settling and success vs mass). Settling moves ~11% over a 10× mass range — the flat axis that motivated adding the discriminative actuator axis (cf. Figure 5.2).*
+*Figure 5.8 — Mass sweep (settling and success vs mass). Settling moves ~11% over a 10× mass range — the flat axis that motivated adding the discriminative actuator axis (cf. Figure 5.2).*
 
 ## 5.8 Mid-Approach Shock: The Boundary of Adaptation
 
@@ -474,7 +480,7 @@ agents pull is initial calibration and approach shaping, not a dramatic
 gain surface. (Approach-phase gains carry more of the scheduling than the hold
 phase analysed here; this is noted as a refinement.)
 
-Figure 5.x plots the steady-state $K_p$, $K_i$, $K_d$ against actuator strength
+Figure 5.9 plots the steady-state $K_p$, $K_i$, $K_d$ against actuator strength
 for both agents at nominal mass. Two things are visible. The curves are
 **nearly horizontal** — over the full training actuator range the teacher's
 $K_d$ moves about 1.5%, far less than the 3.7× change in the *task* difficulty
@@ -495,9 +501,9 @@ that the learned controllers are closer to *well-chosen robust regulators* than
 to *steep gain schedulers* — a more modest and more accurate description than
 "the agent learns a gain schedule", and one the data supports directly.
 
-![Steady-state Kp, Ki, Kd vs actuator strength for context and blind agents — two flat, offset operating points.](../figures/fig5_gain_regimes.png)
+![Steady-state Kp, Ki, Kd vs actuator strength for context and blind agents — two flat, offset operating points.](figures/fig5_gain_regimes.png)
 
-*Figure 5.8 — Learned gain regimes vs actuator strength (mass = 10 kg). The teacher (low-Kp/high-Kd) and student (the reverse) occupy two distinct but near-flat operating points — robust regulators rather than steep schedules.*
+*Figure 5.9 — Learned gain regimes vs actuator strength (mass = 10 kg). The teacher (low-Kp/high-Kd) and student (the reverse) occupy two distinct but near-flat operating points — robust regulators rather than steep schedules.*
 
 ## 5.10 Transfer to an Unstable Plant: Inverted Pendulum
 
@@ -547,9 +553,9 @@ thesis that learned gain scheduling adds real value over fixed gains when
 adaptation genuinely matters, and that the contribution is not an artifact of
 the wheeled-vehicle plant.
 
-![Pendulum balance survival by scenario for fixed PID, blind, and context controllers.](../figures/fig5_pendulum_survival.png)
+![Pendulum balance survival by scenario for fixed PID, blind, and context controllers.](figures/fig5_pendulum_survival.png)
 
-*Figure 5.9 — Pendulum transfer. Fixed gains fail the compound hard corners (Heavy-Pole-Weak-Gear, OOD Weak-Gear); the learned agents rescue them — the largest RL-over-fixed advantage in the thesis.*
+*Figure 5.10 — Pendulum transfer. Fixed gains fail the compound hard corners (Heavy-Pole-Weak-Gear, OOD Weak-Gear); the learned agents rescue them — the largest RL-over-fixed advantage in the thesis.*
 
 ## 5.11 Summary
 

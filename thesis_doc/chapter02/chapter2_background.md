@@ -27,6 +27,10 @@ derivative term anticipates, damping oscillation. In the Laplace domain the
 controller is $C(s) = K_p + K_i/s + K_d s$, and the closed loop $C(s)P(s)$
 around a plant $P(s)$ has dynamics that the gains shape directly.
 
+![PID control loop: the error drives parallel proportional, integral, and derivative terms whose sum is the command, passed through actuator saturation to the plant, with the output fed back.](figures/fig2_1_pid_block.png)
+
+*Figure 2.1 — The PID control loop with actuator saturation.*
+
 Tuning chooses the gains, and the major methods illustrate how much plant
 knowledge that requires. **Ziegler–Nichols** drives the loop to its stability
 limit, records the ultimate gain $K_u$ and oscillation period $T_u$, and reads
@@ -83,6 +87,10 @@ recover. This matches the ~7 m overshoot and 74–93 s recovery measured for
 naive PID in the no-reset environment (§5.6), and it is exactly what
 anti-windup is designed to prevent.
 
+![Integral windup: with the error one sign through a ~10 s saturated approach, the integral accumulates to ≈17.5 — far beyond the [-1,1] command range — so the loop overshoots and the integrator must unwind before recovery.](figures/fig2_2_windup.png)
+
+*Figure 2.2 — Integral windup on an input-saturated approach (schematic).*
+
 Industrial PID blocks therefore include **anti-windup** compensation
 [^astrom1995]. Two standard mechanisms are used here. **Back-calculation**
 drives the integral state toward consistency with the saturated output through
@@ -99,6 +107,10 @@ overstates the learner's advantage, whereas an environment aid that resets the
 integrator using task knowledge (the `brake_integral_reset` of §3.x) *under*-
 states it. The fair classical comparator sits between these extremes, and
 Chapter 5 shows it solves the windup-prone task that naive PID fails.
+
+![Back-calculation anti-windup: a tracking term (u_sat − u)/T_t feeds back to bleed the integrator whenever the command saturates, vanishing when unsaturated.](figures/fig2_3_antiwindup_block.png)
+
+*Figure 2.3 — Back-calculation anti-windup.*
 
 ## 2.3 Classical Adaptive Control
 
@@ -215,6 +227,10 @@ of that sample vanishes, so the update cannot be dominated by a few large ratio
 moves. This recovers most of TRPO's stability with first-order optimization and
 a few epochs of minibatch SGD per data batch. We use $\epsilon = 0.2$.
 
+![PPO clipped surrogate L^CLIP versus the probability ratio for positive and negative advantage; once the ratio leaves [1−ε, 1+ε] the objective flattens and the sample's gradient vanishes.](figures/fig2_4_ppo_clip.png)
+
+*Figure 2.4 — The PPO clipped surrogate: the gradient vanishes once the ratio leaves the trust band.*
+
 ### 2.4.3 Advantage estimation (GAE)
 
 The surrogate needs an advantage estimate $A_t$. The temporal-difference
@@ -288,6 +304,10 @@ from the cruise phase, and $\mu$ not at all. Chapter 5's probing analysis
 confirms exactly this phase structure, connecting the learning result to the
 identifiability theory: the information available to the blind agent is exactly
 the information its closed-loop trajectory excites — no more, and no less.
+
+![Identifiability by phase: mass changes the acceleration time constant τ_v (the early transient) while actuator strength sets the cruise speed v_max — each parameter is excited in a different phase of the trajectory.](figures/fig2_5_identifiability.png)
+
+*Figure 2.5 — Each hidden parameter is excited in a different phase: mass during acceleration, actuator strength during cruise (the RQ4 prediction).*
 
 ## 2.5 Domain Randomization and Teacher–Student Learning
 

@@ -49,6 +49,10 @@ period $\Delta t = 0.02$ s.
 - **Final absolute error** $= |e_T|$ — residual at episode end, a check that a
   "success" is genuinely held, not a fly-through.
 
+![A single position trace approaching the 5 m target, annotated with the ±0.05 m hold band, the stays-within settling time, the overshoot, and the IAE as the shaded error area.](figures/fig4_1_metric_trace.png)
+
+*Figure 4.1 — Metric definitions on one position trace: success (hold band), settling time (stays-within), overshoot, and IAE.*
+
 The unit error corrected in the audit (F1) affected $t_s$ and IAE (both scale
 with $\Delta t$): using the physics timestep 0.002 s instead of the control
 period 0.02 s reported them 10× too small. Overshoot, success, and final error
@@ -86,6 +90,10 @@ distribution (OOD) conditions beyond the training ranges:
 | OOD Ultra Heavy | 35 | 1.0 | 1.0 | mass 1.75× ceiling |
 | OOD Weak Motor | 10 | 1.0 | 0.45 | actuator below floor |
 | OOD Heavy Weak | 30 | 1.0 | 0.55 | combined OOD |
+
+![Scenario suite plotted in actuator-strength × mass space: five in-distribution scenarios inside the training box and three out-of-distribution corners (ultra-heavy mass, weak motor below the actuator floor, and the combined heavy-weak corner).](figures/fig4_2_scenario_map.png)
+
+*Figure 4.2 — The eight-scenario suite: five in-distribution, three out-of-distribution along distinct extrapolation directions.*
 
 **Dynamic evaluation** adds the mid-episode disturbance (§3.3) to each
 scenario. **Robustness probes** (Chapter 5) additionally sweep a single axis

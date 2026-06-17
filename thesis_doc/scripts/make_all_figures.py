@@ -8,7 +8,7 @@ missing inputs: each figure is wrapped in try/except and skipped with a notice
 if its CSV is absent, so the script runs to completion on a partial results dir.
 
 Run: venv/Scripts/python.exe thesis_doc/scripts/make_all_figures.py
-Output: thesis_doc/figures/*.png  (plus the Ch3 diagrams via make_diagrams.py)
+Output: thesis_doc/chapter05/figures/*.png  (plus the Ch3 diagrams via make_diagrams.py)
 """
 
 from pathlib import Path
@@ -22,7 +22,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 BR = ROOT / "benchmark_results"
-OUT = ROOT / "thesis_doc" / "figures"
+OUT = ROOT / "thesis_doc" / "chapter05" / "figures"
 OUT.mkdir(parents=True, exist_ok=True)
 
 plt.rcParams.update({"figure.dpi": 150, "font.size": 10, "axes.grid": True, "grid.alpha": 0.3})

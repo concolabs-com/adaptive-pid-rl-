@@ -171,6 +171,14 @@ tightly toleranced) that a fixed compromise is unsafe, and classical adaptation
 is ruled out by the plant's nonlinearity or lack of a model. The pendulum is the
 archetype of that corner; the self-stabilizing car, tellingly, is not.
 
+![The four controllers on capability (adaptation to unknown/unstable dynamics) versus cost (model, training, opacity, sim-to-real risk): Fixed and Anti-Windup PID are cheap and adequate when stable, MRAC is costly yet fails fairly, and learned scheduling is the costly-but-capable corner.](figures/fig6_1_capability_cost.png)
+
+*Figure 6.1 — Capability vs cost: match the controller to the failure mode you actually face.*
+
+![Decision tree for controller choice: if the dynamics are known and stable use fixed PID; if windup-prone but stable add anti-windup; if the dynamics are unknown/varying and consequential (unstable, tightly toleranced) reach for learned gain scheduling; consider MRAC only when a model and a reliable sensitivity sign exist.](figures/fig6_2_decision_tree.png)
+
+*Figure 6.2 — Which controller? Use the simplest whose failure mode you do not face.*
+
 ## 6.5 Threats to Validity
 
 It is worth stating explicitly which conclusions could still be wrong and why,

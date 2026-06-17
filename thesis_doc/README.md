@@ -31,23 +31,19 @@ thesis_doc/
 │
 ├── chapter05/                         ← Results and Analysis (~4,000 words)
 │   ├── chapter5_results.md
-│   ├── figures/
-│   │   ├── training/
-│   │   │   ├── stage5a_learning_curve.png
-│   │   │   └── stage5b_learning_curve.png
-│   │   ├── trajectories/
-│   │   │   ├── stage5a_static_trajectories.png
-│   │   │   ├── stage5b_static_trajectories.png
-│   │   │   ├── stage5a_dynamic_trajectories.png
-│   │   │   ├── stage5b_dynamic_trajectories.png
-│   │   │   ├── baseline_static_trajectories.png
-│   │   │   ├── baseline_dynamic_trajectories.png
-│   │   │   └── baseline_no_reset_trajectories.png
-│   │   └── eval/
-│   │       ├── stage5a_eval_summary.png
-│   │       ├── stage5b_eval_summary.png
-│   │       ├── stage5a_dynamic_eval_summary.png
-│   │       └── stage5b_dynamic_eval_summary.png
+│   ├── figures/                       ← 12 result figures (fig5_*), embedded in chapter5_results.md
+│   │   ├── fig5_training_curves.png
+│   │   ├── fig5_rq2_settling.png
+│   │   ├── fig5_actuator_sweep.png
+│   │   ├── fig5_stack_ablation.png
+│   │   ├── fig5_probe_r2.png
+│   │   ├── fig5_antiwindup.png
+│   │   ├── fig5_antiwindup_traces_none.png
+│   │   ├── fig5_antiwindup_traces_backcalc.png
+│   │   ├── fig5_mrac.png
+│   │   ├── fig5_mass_sweep.png
+│   │   ├── fig5_gain_regimes.png
+│   │   └── fig5_pendulum_survival.png
 │   └── data/                          ← raw CSV results (for tables + reproduction)
 │       ├── stage5a_context_rl/
 │       ├── stage5b_blind_rl/

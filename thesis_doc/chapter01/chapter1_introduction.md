@@ -77,6 +77,10 @@ hidden from the controller. Training across the distribution of $\psi$ —
 **domain randomization** [^tobin2017] — forces a single policy to perform
 across the whole family rather than overfitting one operating point.
 
+![Online PID gain scheduling under hidden dynamics: per-episode hidden parameters ψ set the plant; an RL policy schedules the gains of a classical PID loop; the context-aware teacher observes ψ while the blind student infers it from the trajectory (implicit system identification).](figures/fig1_1_graphical_abstract.png)
+
+*Figure 1.1 — The thesis at a glance: RL supervises a classical PID loop under hidden, randomized dynamics; the teacher observes the parameters, the student infers them.*
+
 Within this frame the thesis studies a deliberately sharp contrast, borrowed
 from the **privileged-information** or **teacher–student** paradigm that
 underlies recent learned control [^kumar2021]:
@@ -131,6 +135,10 @@ does each parameter become decodable?
 RQ1 and RQ2 establish that the approach works and quantify the cost of
 blindness. RQ3 and RQ4 turn from *whether* to *how*: they probe the mechanism
 of the implicit identification that makes the blind agent possible.
+
+![The four research questions, arranged from feasibility and the cost of blindness (RQ1–RQ2) to the mechanism of implicit identification (RQ3–RQ4), unified by the plant's identifiability structure.](figures/fig1_2_rq_roadmap.png)
+
+*Figure 1.2 — Research-question roadmap: from whether the approach works to how the blind agent infers the dynamics.*
 
 ## 1.4 A note on scientific method
 

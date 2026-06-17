@@ -91,6 +91,10 @@ phase — mass in the acceleration transient ($\tau_v\propto m$), actuator
 strength in the cruise ($v_{\max}\propto\kappa$) — is exactly what the probing
 analysis recovers (§2.4.5, §5.5).
 
+![Settling time ≈ d/v_max: nearly flat across a 10× mass range (mass enters only the transient τ_v) but steeply decreasing in actuator strength (v_max ∝ κ); training ranges shaded.](figures/fig3_5_terminal_speed.png)
+
+*Figure 3.5 — Why actuator strength discriminates controllers and mass does not; the analytical prediction confirmed by the measured mass sweep (§5.7, Figure 5.8).*
+
 **Gain parameterization.** The policy action $a\in[-1,1]^3$ maps to gains
 around a base:
 
@@ -144,6 +148,10 @@ everywhere). The final form rewards approach, then deceleration, then a held
 stop, using only soft penalties, and is the `thesis_v4_cliff`/`thesis_v6_hipmdp`
 reward; the dropped variants are documented because their failure is itself
 informative about reward design on input-saturated plants.
+
+![Reward contributions versus position: progress and distance terms are zeroed inside the braking zone, the overshoot penalty activates past the target, and a +80 terminal bonus rewards the held stop.](figures/fig3_6_reward_shaping.png)
+
+*Figure 3.6 — Reward shaping across the approach and braking zone.*
 
 ![Car task schematic: start at x=0, drive through a reduced-friction patch (x∈[1.5,2.4] m) to the 5 m target, holding within ±0.05 m; the braking zone is |error|<2 m.](figures/fig3_2_environment.png)
 
@@ -324,6 +332,10 @@ car, purely about how the inner-loop gains are scheduled given the hidden plant.
 The reward is $r = 1 - 5\theta^2 - 0.1 x^2 - 0.05\dot x^2$ per step with a
 $-20$ penalty on failure (pole past $\pm0.4$ rad or cart past $\pm0.95$ m),
 which rewards upright-and-centred balance and sharply punishes a fall.
+
+![Pendulum cascade: a fixed outer loop maps cart state to an angle reference; the inner angle-PID, whose Kp/Kd the RL agent schedules, drives the unstable cart-pole. The outer loop is identical for every controller.](figures/fig3_7_pendulum_cascade.png)
+
+*Figure 3.7 — The inverted-pendulum cascade; the RL agent schedules only the inner-loop gains.*
 
 This plant is *unstable* — left uncontrolled the pole diverges exponentially —
 so a poorly matched fixed gain does not merely settle slowly (as on the car) but
