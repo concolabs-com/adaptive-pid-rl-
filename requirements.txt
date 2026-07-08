@@ -2,7 +2,7 @@
 # Python 3.10 | Windows | RTX 3070 Laptop
 
 # Dev tools (linting/formatting)
-black==24.10.0
+black==26.5.1
 isort==5.13.2
 flake8==7.1.1
 pre-commit==3.8.0
